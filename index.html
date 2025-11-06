@@ -36,7 +36,6 @@ if ('serviceWorker' in navigator) {
             position: fixed;
             overflow: hidden;
             overscroll-behavior: none;
-            -webkit-overflow-scrolling: auto;
         }
 
         body {
@@ -359,6 +358,17 @@ if ('serviceWorker' in navigator) {
             background: #001100;
         }
 
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-buttons .btn {
+            margin: 0;
+        }
+
         .save-comparison {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -487,26 +497,11 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 
-    <!-- Login Required Screen -->
-    <div id="loginRequired" class="blocking-screen">
-        <div class="blocking-icon">🔐</div>
-        <div class="blocking-title">Anmeldung erforderlich</div>
-        <div class="blocking-text">
-            Melde dich mit GitHub an, um Terminal Farm zu nutzen.
-        </div>
-        <div class="blocking-steps">
-            <div>✓ Sichere Cloud-Speicherung</div>
-            <div>✓ Spielstand auf mehreren Geräten</div>
-            <div>✓ Automatische Synchronisation</div>
-        </div>
-        <button class="btn large" id="loginBtn">Mit GitHub anmelden</button>
-    </div>
-
-    <!-- Sync Conflict Modal -->
-    <div id="syncConflictModal" class="modal">
+    <!-- Cloud Restore Modal -->
+    <div id="cloudRestoreModal" class="modal">
         <div class="modal-content">
-            <div class="modal-title">⚠️ SPIELSTAND WÄHLEN</div>
-            <div id="syncConflictContent"></div>
+            <div class="modal-title">☁️ CLOUD-SICHERUNG WIEDERHERSTELLEN</div>
+            <div id="cloudRestoreContent"></div>
         </div>
     </div>
 
@@ -536,7 +531,9 @@ if ('serviceWorker' in navigator) {
         <div class="modal-content">
             <div class="modal-title">📊 FARM STATUS</div>
             <div id="statusContent"></div>
-            <button class="btn" style="width: 100%; margin-top: 20px;" id="closeStatusBtn">Schließen</button>
+            <div class="modal-buttons">
+                <button class="btn" id="closeStatusBtn">Schließen</button>
+            </div>
         </div>
     </div>
 
@@ -545,7 +542,9 @@ if ('serviceWorker' in navigator) {
         <div class="modal-content">
             <div class="modal-title">📦 INVENTAR</div>
             <div id="inventoryContent"></div>
-            <button class="btn" style="width: 100%; margin-top: 20px;" id="closeInventoryBtn">Schließen</button>
+            <div class="modal-buttons">
+                <button class="btn" id="closeInventoryBtn">Schließen</button>
+            </div>
         </div>
     </div>
 
@@ -554,7 +553,6 @@ if ('serviceWorker' in navigator) {
         <div class="modal-content">
             <div class="modal-title">⚙️ EINSTELLUNGEN</div>
             <div id="settingsContent"></div>
-            <button class="btn" style="width: 100%; margin-top: 20px;" id="closeSettingsBtn">Schließen</button>
         </div>
     </div>
 
@@ -590,7 +588,7 @@ if ('serviceWorker' in navigator) {
         const provider = new GithubAuthProvider();
 
         // ============================================
-        // STRICT ACCESS CONTROL
+        // ACCESS CONTROL - NO LOGIN REQUIRED
         // ============================================
 
         function isPWA() {
@@ -606,14 +604,12 @@ if ('serviceWorker' in navigator) {
         function updateAccessControl() {
             const screenOK = checkScreenSize();
             const pwaOK = isPWA();
-            const loginOK = currentUser !== null;
 
             document.getElementById('screenWarning').classList.toggle('active', !screenOK);
             document.getElementById('pwaRequired').classList.toggle('active', screenOK && !pwaOK);
-            document.getElementById('loginRequired').classList.toggle('active', screenOK && pwaOK && !loginOK);
-            document.getElementById('gameContainer').style.display = (screenOK && pwaOK && loginOK) ? 'flex' : 'none';
+            document.getElementById('gameContainer').style.display = (screenOK && pwaOK) ? 'flex' : 'none';
 
-            return screenOK && pwaOK && loginOK;
+            return screenOK && pwaOK;
         }
 
         // ============================================
@@ -650,10 +646,7 @@ if ('serviceWorker' in navigator) {
 
         let currentUser = null;
         let isOnline = navigator.onLine;
-        let lastSync = 0;
-        let isSyncing = false;
-        let pendingCloudData = null;
-        let syncResolved = false;
+        let lastCloudBackup = 0;
 
         // DOM Elements
         const terminal = document.getElementById('terminal');
@@ -679,10 +672,7 @@ if ('serviceWorker' in navigator) {
         }
 
         function updateSyncBadge() {
-            if (isSyncing) {
-                syncBadge.className = 'sync-badge syncing';
-                syncBadge.textContent = '⟳ Sync...';
-            } else if (!isOnline) {
+            if (!isOnline) {
                 syncBadge.className = 'sync-badge offline';
                 syncBadge.textContent = '● Offline';
             } else {
@@ -692,7 +682,7 @@ if ('serviceWorker' in navigator) {
         }
 
         // ============================================
-        // STORAGE FUNCTIONS
+        // LOCAL STORAGE ONLY
         // ============================================
 
         function saveLocal() {
@@ -709,7 +699,7 @@ if ('serviceWorker' in navigator) {
                     flourProducing: game.flourProducing.map(item => ({
                         elapsed: Date.now() - item.startTime
                     })),
-                    version: '2.4'
+                    version: '3.0'
                 };
                 localStorage.setItem('terminalFarmSave', JSON.stringify(data));
             } catch (error) {
@@ -738,12 +728,18 @@ if ('serviceWorker' in navigator) {
             }
         }
 
-        async function saveToFirestore() {
-            if (!currentUser || isSyncing || !isOnline) return;
+        // ============================================
+        // MANUAL CLOUD BACKUP/RESTORE
+        // ============================================
+
+        async function backupToCloud() {
+            if (!currentUser || !isOnline) {
+                print('❌ Nicht eingeloggt oder offline!', 'error');
+                return false;
+            }
             
             try {
-                isSyncing = true;
-                updateSyncBadge();
+                print('☁️ Sichere in Cloud...', 'info');
                 
                 game.lastUpdate = Date.now();
                 const data = {
@@ -757,50 +753,46 @@ if ('serviceWorker' in navigator) {
                     flourProducing: game.flourProducing.map(item => ({
                         elapsed: Date.now() - item.startTime
                     })),
-                    syncedAt: Date.now(),
-                    version: '2.4'
+                    backedUpAt: Date.now(),
+                    version: '3.0'
                 };
                 
                 await setDoc(doc(db, "farms", currentUser.uid), data);
-                lastSync = Date.now();
+                lastCloudBackup = Date.now();
+                print('✓ Cloud-Sicherung erfolgreich!', 'success');
+                return true;
             } catch (error) {
-                console.error('Cloud save failed:', error);
-            } finally {
-                isSyncing = false;
-                updateSyncBadge();
+                console.error('Cloud backup failed:', error);
+                print('❌ Cloud-Sicherung fehlgeschlagen!', 'error');
+                return false;
             }
         }
 
-        async function loadFromFirestore() {
-            if (!currentUser) return null;
+        async function restoreFromCloud() {
+            if (!currentUser || !isOnline) {
+                print('❌ Nicht eingeloggt oder offline!', 'error');
+                return;
+            }
             
             try {
+                print('☁️ Lade Cloud-Sicherung...', 'info');
+                
                 const docRef = doc(db, "farms", currentUser.uid);
                 const docSnap = await getDoc(docRef);
-                return docSnap.exists() ? docSnap.data() : null;
+                
+                if (!docSnap.exists()) {
+                    print('❌ Keine Cloud-Sicherung gefunden!', 'error');
+                    return;
+                }
+                
+                const cloudData = docSnap.data();
+                const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
+                
+                showRestoreComparison(localData, cloudData);
             } catch (error) {
-                console.error('Cloud load failed:', error);
-                return null;
+                console.error('Cloud restore failed:', error);
+                print('❌ Wiederherstellung fehlgeschlagen!', 'error');
             }
-        }
-
-        // ============================================
-        // CLOUD SYNC SYSTEM
-        // ============================================
-
-        function applyGameData(data) {
-            Object.assign(game, data);
-            game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
-                startTime: Date.now() - (item.elapsed || 0)
-            }));
-            game.applesGrowing = (game.applesGrowing || []).map(item => ({
-                startTime: Date.now() - (item.elapsed || 0)
-            }));
-            game.flourProducing = (game.flourProducing || []).map(item => ({
-                startTime: Date.now() - (item.elapsed || 0)
-            }));
-            saveLocal();
-            updateDisplay();
         }
 
         function calculateProgress(data) {
@@ -813,9 +805,9 @@ if ('serviceWorker' in navigator) {
                    (data.mills || 0) * 400;
         }
 
-        function showSyncConflict(localData, cloudData, reason) {
-            const modal = document.getElementById('syncConflictModal');
-            const content = document.getElementById('syncConflictContent');
+        function showRestoreComparison(localData, cloudData) {
+            const modal = document.getElementById('cloudRestoreModal');
+            const content = document.getElementById('cloudRestoreContent');
             
             const localDate = new Date(localData.lastUpdate || 0);
             const cloudDate = new Date(cloudData.lastUpdate || 0);
@@ -824,29 +816,17 @@ if ('serviceWorker' in navigator) {
             const cloudScore = calculateProgress(cloudData);
             const localRecommended = localScore >= cloudScore;
             
-            let reasonText = '';
-            if (reason === 'app-open') {
-                reasonText = '📱 App wurde geöffnet';
-            } else if (reason === 'online') {
-                reasonText = '🌐 Verbindung wiederhergestellt';
-            } else if (reason === 'offline-to-online') {
-                reasonText = '🔄 Von Offline zu Online gewechselt';
-            } else if (reason === 'manual') {
-                reasonText = '🔄 Manuelle Synchronisation';
-            }
-            
             content.innerHTML = `
                 <div style="text-align: center; margin-bottom: 25px;">
-                    <div style="color: #ffaa00; font-size: 18px; margin-bottom: 10px;">${reasonText}</div>
                     <div style="color: #00aaff; font-size: 14px;">
-                        Welchen Spielstand möchtest du verwenden?
+                        Möchtest du die Cloud-Sicherung wiederherstellen?
                     </div>
                 </div>
                 
                 <div class="save-comparison">
                     <div class="save-card ${localRecommended ? 'recommended' : ''}">
-                        ${localRecommended ? '<div class="save-card-badge">⭐ EMPFOHLEN</div>' : ''}
-                        <div class="save-card-title">💾 LOKALER SPIELSTAND</div>
+                        ${localRecommended ? '<div class="save-card-badge">⭐ AKTUELL</div>' : ''}
+                        <div class="save-card-title">💾 AKTUELLER STAND</div>
                         <div class="save-stat"><strong>📅 Datum:</strong> ${localDate.toLocaleString('de-DE')}</div>
                         <div class="save-stat"><strong>💰 Geld:</strong> ${localData.money} €</div>
                         <div class="save-stat"><strong>🌾 Weizen:</strong> ${localData.wheat}</div>
@@ -862,7 +842,7 @@ if ('serviceWorker' in navigator) {
                     
                     <div class="save-card ${!localRecommended ? 'recommended' : ''}">
                         ${!localRecommended ? '<div class="save-card-badge">⭐ EMPFOHLEN</div>' : ''}
-                        <div class="save-card-title">☁️ CLOUD-SPIELSTAND</div>
+                        <div class="save-card-title">☁️ CLOUD-SICHERUNG</div>
                         <div class="save-stat"><strong>📅 Datum:</strong> ${cloudDate.toLocaleString('de-DE')}</div>
                         <div class="save-stat"><strong>💰 Geld:</strong> ${cloudData.money} €</div>
                         <div class="save-stat"><strong>🌾 Weizen:</strong> ${cloudData.wheat}</div>
@@ -878,98 +858,75 @@ if ('serviceWorker' in navigator) {
                 </div>
                 
                 <div class="choice-buttons">
-                    <button class="btn" id="chooseLocalBtn" style="font-size: 16px; padding: 15px;">
-                        💾 Lokal verwenden
+                    <button class="btn" id="keepCurrentBtn" style="font-size: 16px; padding: 15px;">
+                        💾 Aktuell behalten
                     </button>
-                    <button class="btn" id="chooseCloudBtn" style="font-size: 16px; padding: 15px;">
-                        ☁️ Cloud verwenden
+                    <button class="btn" id="restoreCloudBtn" style="font-size: 16px; padding: 15px;">
+                        ☁️ Cloud wiederherstellen
                     </button>
                 </div>
             `;
             
-            document.getElementById('chooseLocalBtn').addEventListener('click', async () => {
+            document.getElementById('keepCurrentBtn').addEventListener('click', () => {
                 modal.classList.remove('active');
-                syncResolved = true;
-                await saveToFirestore();
-                print('✓ Lokaler Spielstand wird verwendet', 'success');
-                print('✓ Cloud wurde aktualisiert', 'success');
+                print('✓ Aktueller Spielstand beibehalten', 'success');
                 print('');
             });
             
-            document.getElementById('chooseCloudBtn').addEventListener('click', () => {
+            document.getElementById('restoreCloudBtn').addEventListener('click', () => {
                 modal.classList.remove('active');
-                syncResolved = true;
-                if (pendingCloudData) {
-                    applyGameData(pendingCloudData);
-                    print('✓ Cloud-Spielstand wird verwendet', 'success');
-                    print('');
-                }
+                Object.assign(game, cloudData);
+                game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
+                    startTime: Date.now() - (item.elapsed || 0)
+                }));
+                game.applesGrowing = (game.applesGrowing || []).map(item => ({
+                    startTime: Date.now() - (item.elapsed || 0)
+                }));
+                game.flourProducing = (game.flourProducing || []).map(item => ({
+                    startTime: Date.now() - (item.elapsed || 0)
+                }));
+                saveLocal();
+                updateDisplay();
+                print('✓ Cloud-Sicherung wiederhergestellt!', 'success');
+                print('');
             });
             
             modal.classList.add('active');
         }
 
-        async function performSmartSync(reason = 'unknown') {
-            if (!currentUser || !isOnline || syncResolved) return;
-            
-            try {
-                const cloudData = await loadFromFirestore();
-                
-                if (!cloudData) {
-                    await saveToFirestore();
-                    syncResolved = true;
-                    print('✓ Erstmaliger Upload abgeschlossen', 'success');
-                    return;
-                }
-                
-                const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
-                
-                pendingCloudData = cloudData;
-                showSyncConflict(localData, cloudData, reason);
-            } catch (error) {
-                console.error('Sync failed:', error);
-                print('❌ Synchronisation fehlgeschlagen', 'error');
-            }
-        }
-
         // ============================================
-        // AUTHENTICATION
+        // AUTHENTICATION (OPTIONAL)
         // ============================================
 
         async function githubLogin() {
             try {
                 const result = await signInWithPopup(auth, provider);
                 currentUser = result.user;
+                print(`✓ Eingeloggt als: ${currentUser.displayName || 'GitHub User'}`, 'success');
+                print('Du kannst jetzt Cloud-Sicherungen erstellen!', 'info');
+                print('');
                 
-                updateAccessControl();
+                // Frage ob Cloud-Sicherung wiederherstellen
+                const docRef = doc(db, "farms", currentUser.uid);
+                const docSnap = await getDoc(docRef);
                 
-                if (updateAccessControl()) {
-                    loadLocal();
-                    updateDisplay();
-                    printWelcome();
-                    
-                    syncResolved = false;
-                    await performSmartSync('app-open');
-                    
-                    if (!game.tutorialCompleted) {
-                        setTimeout(startTutorial, 1000);
-                    }
+                if (docSnap.exists()) {
+                    print('☁️ Cloud-Sicherung gefunden!', 'info');
+                    print('Tippe "restore" um sie wiederherzustellen.', 'warning');
+                    print('');
                 }
             } catch (error) {
                 console.error('Login failed:', error);
-                alert('Login fehlgeschlagen. Bitte versuche es erneut.');
+                print('❌ Login fehlgeschlagen', 'error');
             }
         }
 
         async function logout() {
             try {
-                if (isOnline) {
-                    await saveToFirestore();
-                }
                 await signOut(auth);
                 currentUser = null;
-                syncResolved = false;
-                updateAccessControl();
+                print('✓ Ausgeloggt', 'success');
+                print('');
             } catch (error) {
                 console.error('Logout failed:', error);
             }
@@ -1067,42 +1024,79 @@ if ('serviceWorker' in navigator) {
             const modal = document.getElementById('settingsModal');
             const content = document.getElementById('settingsContent');
             
-            const lastSyncText = lastSync > 0 
-                ? new Date(lastSync).toLocaleString('de-DE')
+            const lastBackupText = lastCloudBackup > 0 
+                ? new Date(lastCloudBackup).toLocaleString('de-DE')
                 : 'Noch nie';
             
-            const username = currentUser?.displayName || 
-                           currentUser?.reloadUserInfo?.screenName || 
-                           currentUser?.email?.split('@')[0] ||
-                           'GitHub User';
-            
-            content.innerHTML = `
-                <div class="modal-item">
-                    <strong>👤 Benutzer:</strong> ${username}
-                </div>
-                <div class="modal-item">
-                    <strong>🕐 Letzte Sync:</strong> ${lastSyncText}
-                </div>
-                <div class="modal-item">
-                    <strong>💾 Lokale Speicherung:</strong> <span style="color: #00ff00;">Alle 2s</span>
-                </div>
-                <div class="modal-item">
-                    <strong>☁️ Cloud-Sync:</strong> <span style="color: #00ff00;">Alle 60s</span>
-                </div>
-                <button class="btn" style="width: 100%; margin-top: 15px;" id="forceSyncBtn">🔄 Jetzt synchronisieren</button>
-                <button class="btn" style="width: 100%; margin-top: 10px; border-color: #ff0000; color: #ff0000;" id="logoutBtn">Ausloggen</button>
-            `;
-            
-            document.getElementById('logoutBtn').addEventListener('click', () => {
-                closeSettings();
-                logout();
-            });
-            
-            document.getElementById('forceSyncBtn').addEventListener('click', async () => {
-                closeSettings();
-                syncResolved = false;
-                await performSmartSync('manual');
-            });
+            if (currentUser) {
+                const username = currentUser.displayName || 
+                               currentUser.reloadUserInfo?.screenName || 
+                               currentUser.email?.split('@')[0] ||
+                               'GitHub User';
+                
+                content.innerHTML = `
+                    <div class="modal-item">
+                        <strong>👤 Angemeldet als:</strong> ${username}
+                    </div>
+                    <div class="modal-item">
+                        <strong>🕐 Letzte Cloud-Sicherung:</strong> ${lastBackupText}
+                    </div>
+                    <div class="modal-item" style="background: #001100; border-color: #00aaff;">
+                        <strong>💾 Speicherung:</strong> Lokal (alle 2s automatisch)
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn" id="backupBtn" style="border-color: #00aaff; color: #00aaff;">☁️ Jetzt sichern</button>
+                        <button class="btn" id="restoreBtn">↓ Wiederherstellen</button>
+                        <button class="btn" id="logoutBtn" style="border-color: #ff0000; color: #ff0000;">Ausloggen</button>
+                    </div>
+                `;
+                
+                document.getElementById('logoutBtn').addEventListener('click', () => {
+                    closeSettings();
+                    logout();
+                });
+                
+                document.getElementById('backupBtn').addEventListener('click', async () => {
+                    closeSettings();
+                    await backupToCloud();
+                });
+                
+                document.getElementById('restoreBtn').addEventListener('click', async () => {
+                    closeSettings();
+                    await restoreFromCloud();
+                });
+            } else {
+                content.innerHTML = `
+                    <div class="modal-item">
+                        <strong>👤 Status:</strong> <span style="color: #ffaa00;">Nicht angemeldet</span>
+                    </div>
+                    <div class="modal-item">
+                        <strong>💾 Speicherung:</strong> <span style="color: #00ff00;">Lokal (alle 2s automatisch)</span>
+                    </div>
+                    <div class="modal-item" style="padding: 20px; background: #001100; border-color: #00aaff;">
+                        <strong style="color: #00aaff;">☁️ Cloud-Sicherung (Optional)</strong>
+                        <p style="margin-top: 10px; color: #00aaff; font-size: 14px;">
+                            Melde dich mit GitHub an, um deine Daten zusätzlich in der Cloud zu sichern!
+                        </p>
+                        <p style="margin-top: 10px; color: #00ff00; font-size: 13px;">
+                            ✓ Zusätzliches Backup<br>
+                            ✓ Manuell wiederherstellbar<br>
+                            ✓ Völlig optional
+                        </p>
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="btn" id="loginBtn">🔗 Mit GitHub anmelden</button>
+                        <button class="btn" id="closeSettingsBtn2">Schließen</button>
+                    </div>
+                `;
+                
+                document.getElementById('loginBtn').addEventListener('click', () => {
+                    closeSettings();
+                    githubLogin();
+                });
+                
+                document.getElementById('closeSettingsBtn2').addEventListener('click', closeSettings);
+            }
             
             modal.classList.add('active');
         }
@@ -1146,9 +1140,11 @@ if ('serviceWorker' in navigator) {
                     <p>Für alle Befehle.</p>
                 </div>
                 
-                <button class="btn" id="closeTutorialBtn" style="width: 100%; font-size: 18px; padding: 15px;">
-                    Los geht's! 🚀
-                </button>
+                <div class="modal-buttons">
+                    <button class="btn" id="closeTutorialBtn" style="font-size: 18px; padding: 15px;">
+                        Los geht's! 🚀
+                    </button>
+                </div>
             `;
             
             document.getElementById('closeTutorialBtn').addEventListener('click', () => {
@@ -1177,13 +1173,21 @@ if ('serviceWorker' in navigator) {
                 print('📦 ERNTEN: harvest wheat/apple/flour/all [anzahl]', 'success');
                 print('💰 VERKAUFEN: sell wheat/apple/flour/all [anzahl]', 'success');
                 print('🏗️ KAUFEN: buy field/tree/mill [anzahl]', 'success');
-                print('📊 INFO: prices, sync, clear', 'success');
+                print('📊 INFO: prices, clear', 'success');
+                print('☁️ CLOUD: login, backup, restore', 'success');
                 print('');
             },
 
-            sync: async () => {
-                syncResolved = false;
-                await performSmartSync('manual');
+            login: () => {
+                githubLogin();
+            },
+
+            backup: async () => {
+                await backupToCloud();
+            },
+
+            restore: async () => {
+                await restoreFromCloud();
             },
 
             prices: () => {
@@ -1263,7 +1267,7 @@ if ('serviceWorker' in navigator) {
                     }
                     const wheatNeeded = amount * 2;
                     if (game.wheat < wheatNeeded) {
-                        print(`❌ Du brauchst ${wheatNeeded} Weizen!`, 'error');
+                        print(`❌ Du brauchst ${wheatNeeded} Weizen!', 'error');
                         return;
                     }
                     game.wheat -= wheatNeeded;
@@ -1493,8 +1497,7 @@ if ('serviceWorker' in navigator) {
                 saveLocal();
                 updateDisplay();
             },
-
-            clear: () => {
+                        clear: () => {
                 terminal.innerHTML = '';
             }
         };
@@ -1518,16 +1521,14 @@ if ('serviceWorker' in navigator) {
         }
 
         // ============================================
-        // EVENT LISTENERS - STRICT SCROLL CONTROL
+        // EVENT LISTENERS
         // ============================================
 
-        document.getElementById('loginBtn').addEventListener('click', githubLogin);
         document.getElementById('statusBtn').addEventListener('click', openStatus);
         document.getElementById('inventoryBtn').addEventListener('click', openInventory);
         document.getElementById('settingsBtn').addEventListener('click', openSettings);
         document.getElementById('closeStatusBtn').addEventListener('click', closeStatus);
         document.getElementById('closeInventoryBtn').addEventListener('click', closeInventory);
-        document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
@@ -1537,9 +1538,8 @@ if ('serviceWorker' in navigator) {
             }
         });
 
-        // STRICT SCROLL PREVENTION - ONLY TERMINAL SCROLLS
+        // STRICT SCROLL PREVENTION - ONLY TERMINAL
         
-        // Prevent ALL body/document scrolling
         document.body.addEventListener('touchmove', (e) => {
             if (!e.target.closest('#terminal') && !e.target.closest('.modal-content')) {
                 e.preventDefault();
@@ -1552,7 +1552,7 @@ if ('serviceWorker' in navigator) {
             }
         }, { passive: false });
 
-        // Prevent iOS rubber band effect
+        // Prevent iOS rubber band
         let lastY = 0;
         terminal.addEventListener('touchstart', (e) => {
             lastY = e.touches[0].clientY;
@@ -1564,12 +1564,9 @@ if ('serviceWorker' in navigator) {
             const scrollHeight = terminal.scrollHeight;
             const clientHeight = terminal.clientHeight;
             
-            // At top and scrolling up
             if (scrollTop === 0 && currentY > lastY) {
                 e.preventDefault();
-            }
-            // At bottom and scrolling down
-            else if (scrollTop + clientHeight >= scrollHeight && currentY < lastY) {
+            } else if (scrollTop + clientHeight >= scrollHeight && currentY < lastY) {
                 e.preventDefault();
             }
             
@@ -1604,37 +1601,16 @@ if ('serviceWorker' in navigator) {
         // CONNECTION & LIFECYCLE
         // ============================================
 
-        window.addEventListener('online', async () => {
-            const wasOffline = !isOnline;
+        window.addEventListener('online', () => {
             isOnline = true;
             updateSyncBadge();
-            
-            if (wasOffline && currentUser) {
-                print('✓ Verbindung wiederhergestellt', 'success');
-                syncResolved = false;
-                await performSmartSync('offline-to-online');
-            }
+            print('✓ Verbindung wiederhergestellt', 'success');
         });
 
         window.addEventListener('offline', () => {
             isOnline = false;
             updateSyncBadge();
-            print('⚠️ Offline-Modus - Daten werden lokal gespeichert', 'warning');
-        });
-
-        document.addEventListener('visibilitychange', async () => {
-            if (document.visibilityState === 'visible') {
-                if (currentUser && isOnline) {
-                    print('🔄 App geöffnet - Prüfe Spielstand...', 'info');
-                    syncResolved = false;
-                    await performSmartSync('app-open');
-                }
-            } else if (document.visibilityState === 'hidden') {
-                saveLocal();
-                if (currentUser && isOnline) {
-                    await saveToFirestore();
-                }
-            }
+            print('⚠️ Offline-Modus', 'warning');
         });
 
         window.addEventListener('beforeunload', () => {
@@ -1647,7 +1623,6 @@ if ('serviceWorker' in navigator) {
 
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
-            updateAccessControl();
         });
 
         // ============================================
@@ -1659,13 +1634,6 @@ if ('serviceWorker' in navigator) {
             saveLocal();
         }, 2000);
 
-        // CLOUD: Every 60 seconds (only if online and logged in)
-        setInterval(async () => {
-            if (currentUser && isOnline && !isSyncing) {
-                await saveToFirestore();
-            }
-        }, 60000);
-
         // Update display every second
         setInterval(updateDisplay, 1000);
 
@@ -1675,9 +1643,8 @@ if ('serviceWorker' in navigator) {
             print('   🌾 Willkommen bei TERMINAL FARM! 🌾', 'info');
             print('═══════════════════════════════════════════════════════', 'info');
             print('');
-            print(`Hallo ${currentUser?.displayName || 'Farmer'}!`, 'success');
-            print('');
-            print('💾 Auto-Save: Lokal alle 2s | Cloud alle 60s', 'info');
+            print('💾 Auto-Save: Lokal alle 2 Sekunden', 'info');
+            print('☁️ Cloud-Sicherung: Optional mit GitHub', 'info');
             print('');
             print('Baue Pflanzen an, produziere Waren und verkaufe sie!', 'info');
             print('');
@@ -1689,32 +1656,15 @@ if ('serviceWorker' in navigator) {
         // INITIALIZATION
         // ============================================
 
-        updateAccessControl();
-        
-        const checkInitialAuth = setInterval(() => {
-            if (currentUser) {
-                clearInterval(checkInitialAuth);
-                
-                if (updateAccessControl()) {
-                    loadLocal();
-                    updateDisplay();
-                    printWelcome();
-                    
-                    if (isOnline) {
-                        syncResolved = false;
-                        performSmartSync('app-open');
-                    }
-                    
-                    if (!game.tutorialCompleted) {
-                        setTimeout(startTutorial, 2000);
-                    }
-                }
+        if (updateAccessControl()) {
+            loadLocal();
+            updateDisplay();
+            printWelcome();
+            
+            if (!game.tutorialCompleted) {
+                setTimeout(startTutorial, 1000);
             }
-        }, 100);
-
-        setTimeout(() => {
-            clearInterval(checkInitialAuth);
-        }, 5000);
+        }
     </script>
     
     <!-- Service Worker Registration -->
