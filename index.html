@@ -11,29 +11,41 @@ if ('serviceWorker' in navigator) {
 </script>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0a0a0a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Terminal Farm">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0a'/><rect x='10' y='10' width='80' height='80' fill='none' stroke='%2300ff00' stroke-width='5'/><text x='50' y='65' font-size='40' text-anchor='middle' fill='%2300ff00' font-family='monospace'>TF</text></svg>">
-    <title>Terminal Farm - Befehlszeilen Farmspiel</title>
+    <title>Terminal Farm</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
 
-        html, body {
+        html {
             height: 100%;
-            overflow: hidden;
-            position: fixed;
             width: 100%;
+            position: fixed;
+            overflow: hidden;
+            overscroll-behavior: none;
+            -webkit-overflow-scrolling: auto;
         }
 
         body {
+            height: 100%;
+            width: 100%;
+            position: fixed;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: none;
             background: #0a0a0a;
             color: #00ff00;
             font-family: 'Courier New', monospace;
@@ -56,6 +68,8 @@ if ('serviceWorker' in navigator) {
             justify-content: center;
             padding: 20px;
             text-align: center;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .blocking-screen.active {
@@ -142,6 +156,7 @@ if ('serviceWorker' in navigator) {
             flex-wrap: wrap;
             gap: 10px;
             flex-shrink: 0;
+            overflow: hidden;
         }
 
         .title {
@@ -192,9 +207,10 @@ if ('serviceWorker' in navigator) {
             color: #ffaa00;
             border-color: #ffaa00;
             background: #221100;
-            animation: pulse 1s infinite;
+            animation: blink 1s infinite;
         }
 
+        /* TERMINAL - ONLY SCROLLABLE ELEMENT */
         #terminal {
             flex: 1;
             overflow-y: auto;
@@ -203,6 +219,8 @@ if ('serviceWorker' in navigator) {
             font-size: 14px;
             line-height: 1.6;
             min-height: 0;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
         }
 
         #terminal::-webkit-scrollbar {
@@ -220,6 +238,8 @@ if ('serviceWorker' in navigator) {
         .output-line {
             margin: 5px 0;
             word-wrap: break-word;
+            -webkit-user-select: text;
+            user-select: text;
         }
 
         .success {
@@ -244,6 +264,8 @@ if ('serviceWorker' in navigator) {
             border-top: 2px solid #00ff00;
             background: #000;
             flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
         }
 
         #prompt {
@@ -261,6 +283,8 @@ if ('serviceWorker' in navigator) {
             font-size: 14px;
             outline: none;
             min-width: 0;
+            -webkit-user-select: text;
+            user-select: text;
         }
 
         .growing {
@@ -304,6 +328,8 @@ if ('serviceWorker' in navigator) {
             width: 90%;
             max-height: 85vh;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
         }
 
         .modal-content::-webkit-scrollbar {
@@ -449,7 +475,7 @@ if ('serviceWorker' in navigator) {
         <div class="blocking-icon">📱</div>
         <div class="blocking-title">App-Installation erforderlich</div>
         <div class="blocking-text">
-            Terminal Farm muss als App installiert werden, um optimal zu funktionieren.
+            Terminal Farm muss als App installiert werden.
         </div>
         <div class="blocking-steps">
             <div><strong>📱 iOS (Safari):</strong><br>Teilen → Zum Home-Bildschirm</div>
@@ -466,19 +492,14 @@ if ('serviceWorker' in navigator) {
         <div class="blocking-icon">🔐</div>
         <div class="blocking-title">Anmeldung erforderlich</div>
         <div class="blocking-text">
-            Melde dich mit GitHub an, um Terminal Farm zu nutzen.<br><br>
-            <strong>Vorteile:</strong>
+            Melde dich mit GitHub an, um Terminal Farm zu nutzen.
         </div>
         <div class="blocking-steps">
             <div>✓ Sichere Cloud-Speicherung</div>
             <div>✓ Spielstand auf mehreren Geräten</div>
             <div>✓ Automatische Synchronisation</div>
-            <div>✓ Datenverlust unmöglich</div>
         </div>
         <button class="btn large" id="loginBtn">Mit GitHub anmelden</button>
-        <div class="blocking-text" style="color: #00aaff; margin-top: 20px; font-size: 14px;">
-            Deine Daten sind sicher und verschlüsselt.
-        </div>
     </div>
 
     <!-- Sync Conflict Modal -->
@@ -572,19 +593,16 @@ if ('serviceWorker' in navigator) {
         // STRICT ACCESS CONTROL
         // ============================================
 
-        // Check if PWA
         function isPWA() {
             return window.matchMedia('(display-mode: standalone)').matches || 
                    window.navigator.standalone === true ||
                    document.referrer.includes('android-app://');
         }
 
-        // Check screen size
         function checkScreenSize() {
             return window.innerWidth >= 768 && window.innerHeight >= 600;
         }
 
-        // Show/hide blocking screens
         function updateAccessControl() {
             const screenOK = checkScreenSize();
             const pwaOK = isPWA();
@@ -634,8 +652,8 @@ if ('serviceWorker' in navigator) {
         let isOnline = navigator.onLine;
         let lastSync = 0;
         let isSyncing = false;
-        let lastConnectionState = isOnline;
         let pendingCloudData = null;
+        let syncResolved = false;
 
         // DOM Elements
         const terminal = document.getElementById('terminal');
@@ -691,7 +709,7 @@ if ('serviceWorker' in navigator) {
                     flourProducing: game.flourProducing.map(item => ({
                         elapsed: Date.now() - item.startTime
                     })),
-                    version: '2.2'
+                    version: '2.4'
                 };
                 localStorage.setItem('terminalFarmSave', JSON.stringify(data));
             } catch (error) {
@@ -740,7 +758,7 @@ if ('serviceWorker' in navigator) {
                         elapsed: Date.now() - item.startTime
                     })),
                     syncedAt: Date.now(),
-                    version: '2.2'
+                    version: '2.4'
                 };
                 
                 await setDoc(doc(db, "farms", currentUser.uid), data);
@@ -767,8 +785,33 @@ if ('serviceWorker' in navigator) {
         }
 
         // ============================================
-        // SMART SYNC WITH ALWAYS ASK USER
+        // CLOUD SYNC SYSTEM
         // ============================================
+
+        function applyGameData(data) {
+            Object.assign(game, data);
+            game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
+                startTime: Date.now() - (item.elapsed || 0)
+            }));
+            game.applesGrowing = (game.applesGrowing || []).map(item => ({
+                startTime: Date.now() - (item.elapsed || 0)
+            }));
+            game.flourProducing = (game.flourProducing || []).map(item => ({
+                startTime: Date.now() - (item.elapsed || 0)
+            }));
+            saveLocal();
+            updateDisplay();
+        }
+
+        function calculateProgress(data) {
+            return (data.money || 0) + 
+                   (data.wheat || 0) * 8 + 
+                   (data.apples || 0) * 15 + 
+                   (data.flour || 0) * 25 +
+                   (data.wheatFields || 0) * 100 +
+                   (data.appleTrees || 0) * 200 +
+                   (data.mills || 0) * 400;
+        }
 
         function showSyncConflict(localData, cloudData, reason) {
             const modal = document.getElementById('syncConflictModal');
@@ -788,6 +831,8 @@ if ('serviceWorker' in navigator) {
                 reasonText = '🌐 Verbindung wiederhergestellt';
             } else if (reason === 'offline-to-online') {
                 reasonText = '🔄 Von Offline zu Online gewechselt';
+            } else if (reason === 'manual') {
+                reasonText = '🔄 Manuelle Synchronisation';
             }
             
             content.innerHTML = `
@@ -844,6 +889,7 @@ if ('serviceWorker' in navigator) {
             
             document.getElementById('chooseLocalBtn').addEventListener('click', async () => {
                 modal.classList.remove('active');
+                syncResolved = true;
                 await saveToFirestore();
                 print('✓ Lokaler Spielstand wird verwendet', 'success');
                 print('✓ Cloud wurde aktualisiert', 'success');
@@ -852,19 +898,9 @@ if ('serviceWorker' in navigator) {
             
             document.getElementById('chooseCloudBtn').addEventListener('click', () => {
                 modal.classList.remove('active');
+                syncResolved = true;
                 if (pendingCloudData) {
-                    Object.assign(game, pendingCloudData);
-                    game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
-                        startTime: Date.now() - (item.elapsed || 0)
-                    }));
-                    game.applesGrowing = (game.applesGrowing || []).map(item => ({
-                        startTime: Date.now() - (item.elapsed || 0)
-                    }));
-                    game.flourProducing = (game.flourProducing || []).map(item => ({
-                        startTime: Date.now() - (item.elapsed || 0)
-                    }));
-                    saveLocal();
-                    updateDisplay();
+                    applyGameData(pendingCloudData);
                     print('✓ Cloud-Spielstand wird verwendet', 'success');
                     print('');
                 }
@@ -873,33 +909,27 @@ if ('serviceWorker' in navigator) {
             modal.classList.add('active');
         }
 
-        function calculateProgress(data) {
-            return (data.money || 0) + 
-                   (data.wheat || 0) * 8 + 
-                   (data.apples || 0) * 15 + 
-                   (data.flour || 0) * 25 +
-                   (data.wheatFields || 0) * 100 +
-                   (data.appleTrees || 0) * 200 +
-                   (data.mills || 0) * 400;
-        }
-
         async function performSmartSync(reason = 'unknown') {
-            if (!currentUser || !isOnline) return;
+            if (!currentUser || !isOnline || syncResolved) return;
             
-            const cloudData = await loadFromFirestore();
-            
-            if (!cloudData) {
-                // First time - upload local data
-                await saveToFirestore();
-                print('✓ Erstmaliger Upload abgeschlossen', 'success');
-                return;
+            try {
+                const cloudData = await loadFromFirestore();
+                
+                if (!cloudData) {
+                    await saveToFirestore();
+                    syncResolved = true;
+                    print('✓ Erstmaliger Upload abgeschlossen', 'success');
+                    return;
+                }
+                
+                const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
+                
+                pendingCloudData = cloudData;
+                showSyncConflict(localData, cloudData, reason);
+            } catch (error) {
+                console.error('Sync failed:', error);
+                print('❌ Synchronisation fehlgeschlagen', 'error');
             }
-            
-            const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
-            
-            // ALWAYS ASK USER
-            pendingCloudData = cloudData;
-            showSyncConflict(localData, cloudData, reason);
         }
 
         // ============================================
@@ -918,7 +948,7 @@ if ('serviceWorker' in navigator) {
                     updateDisplay();
                     printWelcome();
                     
-                    // Always ask on first login
+                    syncResolved = false;
                     await performSmartSync('app-open');
                     
                     if (!game.tutorialCompleted) {
@@ -938,6 +968,7 @@ if ('serviceWorker' in navigator) {
                 }
                 await signOut(auth);
                 currentUser = null;
+                syncResolved = false;
                 updateAccessControl();
             } catch (error) {
                 console.error('Logout failed:', error);
@@ -1053,10 +1084,10 @@ if ('serviceWorker' in navigator) {
                     <strong>🕐 Letzte Sync:</strong> ${lastSyncText}
                 </div>
                 <div class="modal-item">
-                    <strong>💾 Lokale Speicherung:</strong> <span style="color: #00ff00;">Alle 10s</span>
+                    <strong>💾 Lokale Speicherung:</strong> <span style="color: #00ff00;">Alle 2s</span>
                 </div>
                 <div class="modal-item">
-                    <strong>☁️ Cloud-Sync:</strong> <span style="color: #00ff00;">Automatisch</span>
+                    <strong>☁️ Cloud-Sync:</strong> <span style="color: #00ff00;">Alle 60s</span>
                 </div>
                 <button class="btn" style="width: 100%; margin-top: 15px;" id="forceSyncBtn">🔄 Jetzt synchronisieren</button>
                 <button class="btn" style="width: 100%; margin-top: 10px; border-color: #ff0000; color: #ff0000;" id="logoutBtn">Ausloggen</button>
@@ -1069,6 +1100,7 @@ if ('serviceWorker' in navigator) {
             
             document.getElementById('forceSyncBtn').addEventListener('click', async () => {
                 closeSettings();
+                syncResolved = false;
                 await performSmartSync('manual');
             });
             
@@ -1140,30 +1172,17 @@ if ('serviceWorker' in navigator) {
                 print('║              VERFÜGBARE BEFEHLE                  ║', 'info');
                 print('╚══════════════════════════════════════════════════╝', 'info');
                 print('');
-                print('🌱 ANBAUEN:', 'success');
-                print('  plant wheat [anzahl]  - Weizen (30s)');
-                print('  plant apple [anzahl]  - Äpfel (60s)');
-                print('  produce flour [anzahl] - Mehl (120s, 2 Weizen)');
-                print('');
-                print('📦 ERNTEN:', 'success');
-                print('  harvest wheat/apple/flour [anzahl]');
-                print('  harvest all - Alles ernten');
-                print('');
-                print('💰 VERKAUFEN:', 'success');
-                print('  sell wheat/apple/flour [anzahl]');
-                print('  sell all - Alles verkaufen');
-                print('');
-                print('🏗️ KAUFEN:', 'success');
-                print('  buy field/tree/mill [anzahl]');
-                print('');
-                print('📊 INFO:', 'success');
-                print('  prices - Preise anzeigen');
-                print('  sync - Jetzt synchronisieren');
-                print('  clear - Bildschirm leeren');
+                print('🌱 ANBAUEN: plant wheat/apple [anzahl]', 'success');
+                print('🏺 PRODUZIEREN: produce flour [anzahl]', 'success');
+                print('📦 ERNTEN: harvest wheat/apple/flour/all [anzahl]', 'success');
+                print('💰 VERKAUFEN: sell wheat/apple/flour/all [anzahl]', 'success');
+                print('🏗️ KAUFEN: buy field/tree/mill [anzahl]', 'success');
+                print('📊 INFO: prices, sync, clear', 'success');
                 print('');
             },
 
             sync: async () => {
+                syncResolved = false;
                 await performSmartSync('manual');
             },
 
@@ -1262,9 +1281,10 @@ if ('serviceWorker' in navigator) {
 
             harvest: (args) => {
                 const type = args[0];
-                let harvested = 0;
 
                 if (type === 'all') {
+                    let totalHarvested = 0;
+                    
                     const readyWheat = game.wheatGrowing.filter(item => 
                         Date.now() - item.startTime >= game.growthTimes.wheat
                     );
@@ -1272,7 +1292,10 @@ if ('serviceWorker' in navigator) {
                     game.wheatGrowing = game.wheatGrowing.filter(item => 
                         Date.now() - item.startTime < game.growthTimes.wheat
                     );
-                    if (readyWheat.length > 0) print(`✓ ${readyWheat.length}x Weizen geerntet!`, 'success');
+                    if (readyWheat.length > 0) {
+                        print(`✓ ${readyWheat.length}x Weizen geerntet!`, 'success');
+                        totalHarvested += readyWheat.length;
+                    }
 
                     const readyApples = game.applesGrowing.filter(item => 
                         Date.now() - item.startTime >= game.growthTimes.apple
@@ -1281,7 +1304,10 @@ if ('serviceWorker' in navigator) {
                     game.applesGrowing = game.applesGrowing.filter(item => 
                         Date.now() - item.startTime < game.growthTimes.apple
                     );
-                    if (readyApples.length > 0) print(`✓ ${readyApples.length}x Äpfel geerntet!`, 'success');
+                    if (readyApples.length > 0) {
+                        print(`✓ ${readyApples.length}x Äpfel geerntet!`, 'success');
+                        totalHarvested += readyApples.length;
+                    }
 
                     const readyFlour = game.flourProducing.filter(item => 
                         Date.now() - item.startTime >= game.growthTimes.flour
@@ -1290,9 +1316,12 @@ if ('serviceWorker' in navigator) {
                     game.flourProducing = game.flourProducing.filter(item => 
                         Date.now() - item.startTime < game.growthTimes.flour
                     );
-                    if (readyFlour.length > 0) print(`✓ ${readyFlour.length}x Mehl geerntet!`, 'success');
+                    if (readyFlour.length > 0) {
+                        print(`✓ ${readyFlour.length}x Mehl geerntet!`, 'success');
+                        totalHarvested += readyFlour.length;
+                    }
 
-                    if (readyWheat.length + readyApples.length + readyFlour.length === 0) {
+                    if (totalHarvested === 0) {
                         print('❌ Nichts bereit zum Ernten!', 'error');
                     }
                 } else if (type === 'wheat' || type === 'apple' || type === 'flour') {
@@ -1489,7 +1518,7 @@ if ('serviceWorker' in navigator) {
         }
 
         // ============================================
-        // EVENT LISTENERS
+        // EVENT LISTENERS - STRICT SCROLL CONTROL
         // ============================================
 
         document.getElementById('loginBtn').addEventListener('click', githubLogin);
@@ -1508,13 +1537,73 @@ if ('serviceWorker' in navigator) {
             }
         });
 
+        // STRICT SCROLL PREVENTION - ONLY TERMINAL SCROLLS
+        
+        // Prevent ALL body/document scrolling
+        document.body.addEventListener('touchmove', (e) => {
+            if (!e.target.closest('#terminal') && !e.target.closest('.modal-content')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!e.target.closest('#terminal') && !e.target.closest('.modal-content')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Prevent iOS rubber band effect
+        let lastY = 0;
+        terminal.addEventListener('touchstart', (e) => {
+            lastY = e.touches[0].clientY;
+        }, { passive: true });
+
+        terminal.addEventListener('touchmove', (e) => {
+            const currentY = e.touches[0].clientY;
+            const scrollTop = terminal.scrollTop;
+            const scrollHeight = terminal.scrollHeight;
+            const clientHeight = terminal.clientHeight;
+            
+            // At top and scrolling up
+            if (scrollTop === 0 && currentY > lastY) {
+                e.preventDefault();
+            }
+            // At bottom and scrolling down
+            else if (scrollTop + clientHeight >= scrollHeight && currentY < lastY) {
+                e.preventDefault();
+            }
+            
+            lastY = currentY;
+        }, { passive: false });
+
+        // Prevent double-tap zoom
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                e.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // Prevent gestures
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('gesturechange', (e) => e.preventDefault());
+        document.addEventListener('gestureend', (e) => e.preventDefault());
+
+        // Focus management
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.modal-content') && !e.target.closest('.blocking-screen')) {
+            if (!e.target.closest('.modal-content') && 
+                !e.target.closest('.blocking-screen') && 
+                !e.target.closest('.btn')) {
                 input.focus();
             }
         });
 
-        // Online/Offline detection
+        // ============================================
+        // CONNECTION & LIFECYCLE
+        // ============================================
+
         window.addEventListener('online', async () => {
             const wasOffline = !isOnline;
             isOnline = true;
@@ -1522,6 +1611,7 @@ if ('serviceWorker' in navigator) {
             
             if (wasOffline && currentUser) {
                 print('✓ Verbindung wiederhergestellt', 'success');
+                syncResolved = false;
                 await performSmartSync('offline-to-online');
             }
         });
@@ -1532,10 +1622,13 @@ if ('serviceWorker' in navigator) {
             print('⚠️ Offline-Modus - Daten werden lokal gespeichert', 'warning');
         });
 
-        // App visibility change - ALWAYS ASK ON REOPEN
         document.addEventListener('visibilitychange', async () => {
-            if (document.visibilityState === 'visible' && currentUser && isOnline) {
-                await performSmartSync('app-open');
+            if (document.visibilityState === 'visible') {
+                if (currentUser && isOnline) {
+                    print('🔄 App geöffnet - Prüfe Spielstand...', 'info');
+                    syncResolved = false;
+                    await performSmartSync('app-open');
+                }
             } else if (document.visibilityState === 'hidden') {
                 saveLocal();
                 if (currentUser && isOnline) {
@@ -1544,26 +1637,34 @@ if ('serviceWorker' in navigator) {
             }
         });
 
-        // Before unload
         window.addEventListener('beforeunload', () => {
             saveLocal();
         });
 
-        // Resize check
         window.addEventListener('resize', () => {
             updateAccessControl();
         });
 
-        // Auth state observer
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             updateAccessControl();
         });
 
-        // Auto-save local every 10 seconds
+        // ============================================
+        // AUTO-SAVE SYSTEM
+        // ============================================
+
+        // LOCAL: Every 2 seconds
         setInterval(() => {
             saveLocal();
-        }, 10000);
+        }, 2000);
+
+        // CLOUD: Every 60 seconds (only if online and logged in)
+        setInterval(async () => {
+            if (currentUser && isOnline && !isSyncing) {
+                await saveToFirestore();
+            }
+        }, 60000);
 
         // Update display every second
         setInterval(updateDisplay, 1000);
@@ -1576,6 +1677,8 @@ if ('serviceWorker' in navigator) {
             print('');
             print(`Hallo ${currentUser?.displayName || 'Farmer'}!`, 'success');
             print('');
+            print('💾 Auto-Save: Lokal alle 2s | Cloud alle 60s', 'info');
+            print('');
             print('Baue Pflanzen an, produziere Waren und verkaufe sie!', 'info');
             print('');
             print('Tippe "help" für alle Befehle!', 'warning');
@@ -1586,24 +1689,32 @@ if ('serviceWorker' in navigator) {
         // INITIALIZATION
         // ============================================
 
-        // Check access on load
         updateAccessControl();
         
-        // If already logged in (from previous session)
-        if (currentUser && updateAccessControl()) {
-            loadLocal();
-            updateDisplay();
-            printWelcome();
-            
-            // Always ask on app start
-            if (isOnline) {
-                performSmartSync('app-open');
+        const checkInitialAuth = setInterval(() => {
+            if (currentUser) {
+                clearInterval(checkInitialAuth);
+                
+                if (updateAccessControl()) {
+                    loadLocal();
+                    updateDisplay();
+                    printWelcome();
+                    
+                    if (isOnline) {
+                        syncResolved = false;
+                        performSmartSync('app-open');
+                    }
+                    
+                    if (!game.tutorialCompleted) {
+                        setTimeout(startTutorial, 2000);
+                    }
+                }
             }
-            
-            if (!game.tutorialCompleted) {
-                setTimeout(startTutorial, 1000);
-            }
-        }
+        }, 100);
+
+        setTimeout(() => {
+            clearInterval(checkInitialAuth);
+        }, 5000);
     </script>
     
     <!-- Service Worker Registration -->
@@ -1612,7 +1723,7 @@ if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
                     .then(reg => console.log('✓ Service Worker registered'))
-                    .catch(err => console.log('✗ Service Worker registration failed:', err));
+                    .catch(err => console.log('✗ Service Worker failed:', err));
             });
         }
     </script>
