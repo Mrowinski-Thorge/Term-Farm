@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terminal Farm - Befehlszeilen Farmspiel</title>
+    <title>Terminal Farm</title>
     <style>
         * {
             margin: 0;
@@ -71,6 +71,10 @@
         .btn:hover {
             background: #00ff00;
             color: #000;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
         }
 
         #terminal {
@@ -163,7 +167,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             z-index: 1000;
             overflow: hidden;
         }
@@ -284,13 +288,13 @@
 </head>
 <body>
     <div id="header">
-        <div class="title">🌾 TERMINAL FARM v2.0 🌾</div>
+        <div class="title"> TERMINAL FARM v2.0 </div>
         <div id="money-display">💰 0 €</div>
         <div class="header-buttons">
             <span class="sync-status local" id="syncStatus">● Lokal</span>
-            <button class="btn" onclick="openStatus()">📊 Status</button>
-            <button class="btn" onclick="openInventory()">📦 Inventar</button>
-            <button class="btn" onclick="openSettings()">⚙️ Einstellungen</button>
+            <button class="btn" id="statusBtn">📊 Status</button>
+            <button class="btn" id="inventoryBtn">📦 Inventar</button>
+            <button class="btn" id="settingsBtn">⚙️ Einstellungen</button>
         </div>
     </div>
 
@@ -306,7 +310,7 @@
         <div class="modal-content">
             <div class="modal-title">📊 FARM STATUS</div>
             <div id="statusContent"></div>
-            <button class="btn close-modal" onclick="closeStatus()">Schließen</button>
+            <button class="btn close-modal" id="closeStatusBtn">Schließen</button>
         </div>
     </div>
 
@@ -315,7 +319,7 @@
         <div class="modal-content">
             <div class="modal-title">📦 INVENTAR</div>
             <div id="inventoryContent"></div>
-            <button class="btn close-modal" onclick="closeInventory()">Schließen</button>
+            <button class="btn close-modal" id="closeInventoryBtn">Schließen</button>
         </div>
     </div>
 
@@ -324,7 +328,7 @@
         <div class="modal-content">
             <div class="modal-title">⚙️ EINSTELLUNGEN</div>
             <div id="settingsContent"></div>
-            <button class="btn close-modal" onclick="closeSettings()">Schließen</button>
+            <button class="btn close-modal" id="closeSettingsBtn">Schließen</button>
         </div>
     </div>
 
@@ -353,8 +357,8 @@
                     <li>✓ Offline-Spielstand wird geschützt</li>
                 </ul>
                 <div class="choice-buttons">
-                    <button class="btn" onclick="acceptLogin()">Mit GitHub verbinden</button>
-                    <button class="btn" onclick="declineLogin()">Später</button>
+                    <button class="btn" id="acceptLoginBtn">Mit GitHub verbinden</button>
+                    <button class="btn" id="declineLoginBtn">Später</button>
                 </div>
             </div>
         </div>
@@ -392,7 +396,7 @@
         const provider = new GithubAuthProvider();
 
         // Game State
-        const game = {
+        let game = {
             money: 50,
             wheat: 0,
             apples: 0,
@@ -424,26 +428,24 @@
         let isOnline = navigator.onLine;
         let lastSync = 0;
         let isSyncing = false;
+        let syncInterval = null;
+        let pendingCloudData = null;
 
-        // Terminal elements
+        // DOM Elements
         const terminal = document.getElementById('terminal');
         const input = document.getElementById('input');
         const moneyDisplay = document.getElementById('money-display');
         const syncStatus = document.getElementById('syncStatus');
 
-        // Window functions
-        window.openStatus = openStatus;
-        window.closeStatus = closeStatus;
-        window.openInventory = openInventory;
-        window.closeInventory = closeInventory;
-        window.openSettings = openSettings;
-        window.closeSettings = closeSettings;
-        window.githubLogin = githubLogin;
-        window.logout = logout;
-        window.acceptLogin = acceptLogin;
-        window.declineLogin = declineLogin;
-        window.chooseLocalSave = chooseLocalSave;
-        window.chooseCloudSave = chooseCloudSave;
+        // Button listeners
+        document.getElementById('statusBtn').addEventListener('click', openStatus);
+        document.getElementById('inventoryBtn').addEventListener('click', openInventory);
+        document.getElementById('settingsBtn').addEventListener('click', openSettings);
+        document.getElementById('closeStatusBtn').addEventListener('click', closeStatus);
+        document.getElementById('closeInventoryBtn').addEventListener('click', closeInventory);
+        document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
+        document.getElementById('acceptLoginBtn').addEventListener('click', acceptLogin);
+        document.getElementById('declineLoginBtn').addEventListener('click', declineLogin);
 
         // Prevent body scroll
         document.body.style.overflow = 'hidden';
@@ -478,45 +480,54 @@
             }
         }
 
-        // Save to localStorage
+        // Save to localStorage - PROFESSIONAL STYLE
         function saveLocal() {
-            const data = {
-                ...game,
-                wheatGrowing: game.wheatGrowing.map(item => ({
-                    elapsed: Date.now() - item.startTime
-                })),
-                applesGrowing: game.applesGrowing.map(item => ({
-                    elapsed: Date.now() - item.startTime
-                })),
-                flourProducing: game.flourProducing.map(item => ({
-                    elapsed: Date.now() - item.startTime
-                })),
-                lastUpdate: Date.now()
-            };
-            localStorage.setItem('terminalFarmSave', JSON.stringify(data));
+            try {
+                const data = {
+                    ...game,
+                    wheatGrowing: game.wheatGrowing.map(item => ({
+                        elapsed: Date.now() - item.startTime
+                    })),
+                    applesGrowing: game.applesGrowing.map(item => ({
+                        elapsed: Date.now() - item.startTime
+                    })),
+                    flourProducing: game.flourProducing.map(item => ({
+                        elapsed: Date.now() - item.startTime
+                    })),
+                    lastUpdate: Date.now(),
+                    version: '2.0'
+                };
+                localStorage.setItem('terminalFarmSave', JSON.stringify(data));
+            } catch (error) {
+                console.error('Local save failed:', error);
+            }
         }
 
         // Load from localStorage
         function loadLocal() {
-            const saved = localStorage.getItem('terminalFarmSave');
-            if (saved) {
-                const data = JSON.parse(saved);
-                Object.assign(game, data);
-                game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
-                    startTime: Date.now() - (item.elapsed || 0)
-                }));
-                game.applesGrowing = (game.applesGrowing || []).map(item => ({
-                    startTime: Date.now() - (item.elapsed || 0)
-                }));
-                game.flourProducing = (game.flourProducing || []).map(item => ({
-                    startTime: Date.now() - (item.elapsed || 0)
-                }));
+            try {
+                const saved = localStorage.getItem('terminalFarmSave');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    Object.assign(game, data);
+                    game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
+                        startTime: Date.now() - (item.elapsed || 0)
+                    }));
+                    game.applesGrowing = (game.applesGrowing || []).map(item => ({
+                        startTime: Date.now() - (item.elapsed || 0)
+                    }));
+                    game.flourProducing = (game.flourProducing || []).map(item => ({
+                        startTime: Date.now() - (item.elapsed || 0)
+                    }));
+                }
+            } catch (error) {
+                console.error('Local load failed:', error);
             }
         }
 
-        // Save to Firestore
+        // Save to Firestore - PROFESSIONAL STYLE
         async function saveToFirestore(silent = true) {
-            if (!currentUser || isSyncing) return;
+            if (!currentUser || isSyncing || !isOnline) return;
             
             try {
                 isSyncing = true;
@@ -531,7 +542,8 @@
                     flourProducing: game.flourProducing.map(item => ({
                         elapsed: Date.now() - item.startTime
                     })),
-                    lastUpdate: Date.now()
+                    lastUpdate: Date.now(),
+                    version: '2.0'
                 };
                 
                 await setDoc(doc(db, "farms", currentUser.uid), data);
@@ -541,8 +553,9 @@
                     print('✓ Cloud-Synchronisation erfolgreich', 'success');
                 }
             } catch (error) {
+                console.error('Cloud save failed:', error);
                 if (!silent) {
-                    print('❌ Cloud-Sync fehlgeschlagen: ' + error.message, 'error');
+                    print('❌ Cloud-Sync fehlgeschlagen', 'error');
                 }
             } finally {
                 isSyncing = false;
@@ -551,7 +564,7 @@
 
         // Load from Firestore
         async function loadFromFirestore() {
-            if (!currentUser) return;
+            if (!currentUser) return null;
             
             try {
                 const docRef = doc(db, "farms", currentUser.uid);
@@ -562,7 +575,7 @@
                 }
                 return null;
             } catch (error) {
-                print('❌ Cloud-Load fehlgeschlagen: ' + error.message, 'error');
+                console.error('Cloud load failed:', error);
                 return null;
             }
         }
@@ -595,24 +608,26 @@
                 </div>
                 
                 <div class="choice-buttons">
-                    <button class="btn" onclick="chooseLocalSave()">💾 Lokal verwenden</button>
-                    <button class="btn" onclick="chooseCloudSave()">☁️ Cloud verwenden</button>
+                    <button class="btn" id="chooseLocalBtn">💾 Lokal verwenden</button>
+                    <button class="btn" id="chooseCloudBtn">☁️ Cloud verwenden</button>
                 </div>
             `;
+            
+            // Add event listeners
+            document.getElementById('chooseLocalBtn').addEventListener('click', chooseLocalSave);
+            document.getElementById('chooseCloudBtn').addEventListener('click', chooseCloudSave);
             
             modal.classList.add('active');
         }
 
-        let pendingCloudData = null;
-
-        window.chooseLocalSave = async function() {
+        async function chooseLocalSave() {
             document.getElementById('syncConflictModal').classList.remove('active');
             await saveToFirestore(false);
             print('✓ Lokaler Spielstand wird verwendet', 'success');
             print('✓ Cloud aktualisiert', 'success');
-        };
+        }
 
-        window.chooseCloudSave = function() {
+        function chooseCloudSave() {
             document.getElementById('syncConflictModal').classList.remove('active');
             if (pendingCloudData) {
                 Object.assign(game, pendingCloudData);
@@ -629,14 +644,14 @@
                 updateDisplay();
                 print('✓ Cloud-Spielstand wird verwendet', 'success');
             }
-        };
+        }
 
         // GitHub Login
         async function githubLogin() {
             try {
                 const result = await signInWithPopup(auth, provider);
                 currentUser = result.user;
-                print(`✓ Eingeloggt als: ${currentUser.displayName || 'GitHub User'}`, 'success');
+                print(`✓ Eingeloggt als: ${currentUser.displayName || currentUser.login || 'GitHub User'}`, 'success');
                 
                 // Load cloud data
                 const cloudData = await loadFromFirestore();
@@ -671,9 +686,12 @@
                     await saveToFirestore(false);
                 }
                 
+                // Start cloud sync interval
+                startCloudSync();
                 updateDisplay();
             } catch (error) {
-                print('❌ Login fehlgeschlagen: ' + error.message, 'error');
+                console.error('Login failed:', error);
+                print('❌ Login fehlgeschlagen', 'error');
             }
         }
 
@@ -682,27 +700,47 @@
             try {
                 await signOut(auth);
                 currentUser = null;
+                stopCloudSync();
                 print('✓ Ausgeloggt', 'success');
                 updateDisplay();
             } catch (error) {
-                print('❌ Logout fehlgeschlagen: ' + error.message, 'error');
+                console.error('Logout failed:', error);
+                print('❌ Logout fehlgeschlagen', 'error');
+            }
+        }
+
+        // Cloud sync management - PROFESSIONAL STYLE
+        function startCloudSync() {
+            if (syncInterval) clearInterval(syncInterval);
+            syncInterval = setInterval(() => {
+                if (currentUser && isOnline && Date.now() - lastSync > 60000) {
+                    saveToFirestore(true);
+                }
+            }, 60000); // Check every minute
+        }
+
+        function stopCloudSync() {
+            if (syncInterval) {
+                clearInterval(syncInterval);
+                syncInterval = null;
             }
         }
 
         // Login choice
-        window.acceptLogin = function() {
+        function acceptLogin() {
             document.getElementById('loginChoiceModal').classList.remove('active');
             game.loginChoiceShown = true;
             saveLocal();
             githubLogin();
-        };
+        }
 
-        window.declineLogin = function() {
+        function declineLogin() {
             document.getElementById('loginChoiceModal').classList.remove('active');
             game.loginChoiceShown = true;
             saveLocal();
             print('Du kannst dich jederzeit über die Einstellungen anmelden!', 'info');
-        };
+            print('');
+        }
 
         // Modals
         function openStatus() {
@@ -804,7 +842,7 @@
                 
                 content.innerHTML = `
                     <div class="modal-item">
-                        <strong>👤 Benutzer:</strong> ${currentUser.displayName || 'GitHub User'}
+                        <strong>👤 Benutzer:</strong> ${currentUser.displayName || currentUser.reloadUserInfo?.screenName || 'GitHub User'}
                     </div>
                     <div class="modal-item">
                         <strong>🔗 Status:</strong> <span style="color: #00ff00;">Mit GitHub verbunden</span>
@@ -815,8 +853,13 @@
                     <div class="modal-item">
                         <strong>🕐 Letzte Sync:</strong> ${lastSyncText}
                     </div>
-                    <button class="btn" style="width: 100%; margin-top: 10px;" onclick="logout()">Ausloggen</button>
+                    <button class="btn" style="width: 100%; margin-top: 10px;" id="logoutBtn">Ausloggen</button>
                 `;
+                
+                document.getElementById('logoutBtn').addEventListener('click', () => {
+                    closeSettings();
+                    logout();
+                });
             } else {
                 content.innerHTML = `
                     <div class="modal-item">
@@ -829,9 +872,14 @@
                         <p style="margin-bottom: 15px; color: #00aaff;">
                             Verbinde dich mit GitHub, um deine Daten sicher in der Cloud zu speichern und auf mehreren Geräten zu spielen!
                         </p>
-                        <button class="btn" style="width: 100%;" onclick="githubLogin()">🔗 Mit GitHub verbinden</button>
+                        <button class="btn" style="width: 100%;" id="loginBtn">🔗 Mit GitHub verbinden</button>
                     </div>
                 `;
+                
+                document.getElementById('loginBtn').addEventListener('click', () => {
+                    closeSettings();
+                    githubLogin();
+                });
             }
             
             modal.classList.add('active');
@@ -877,15 +925,16 @@
                     <p>Für eine vollständige Liste aller Befehle.</p>
                 </div>
                 
-                <button class="btn close-modal" onclick="closeTutorial()" style="width: 100%;">
+                <button class="btn close-modal" id="closeTutorialBtn" style="width: 100%;">
                     Los geht's! 🚀
                 </button>
             `;
             
+            document.getElementById('closeTutorialBtn').addEventListener('click', closeTutorial);
             modal.classList.add('active');
         }
 
-        window.closeTutorial = function() {
+        function closeTutorial() {
             document.getElementById('tutorialModal').classList.remove('active');
             game.tutorialCompleted = true;
             saveLocal();
@@ -898,7 +947,7 @@
                     document.getElementById('loginChoiceModal').classList.add('active');
                 }, 500);
             }
-        };
+        }
 
         // Commands
         const commands = {
@@ -1324,31 +1373,54 @@
 
         // Keep input focused
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.modal')) {
+            if (!e.target.closest('.modal-content')) {
                 input.focus();
             }
         });
 
-        // Online/Offline detection
+        // Online/Offline detection - PROFESSIONAL STYLE
         window.addEventListener('online', async () => {
+            const wasOffline = !isOnline;
             isOnline = true;
             updateSyncStatus();
-            print('✓ Verbindung wiederhergestellt', 'success');
             
-            if (currentUser) {
-                const cloudData = await loadFromFirestore();
-                if (cloudData) {
-                    const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
-                    const localTime = localData.lastUpdate || 0;
-                    const cloudTime = cloudData.lastUpdate || 0;
-                    
-                    if (localTime > cloudTime && Math.abs(localTime - cloudTime) > 60000) {
-                        pendingCloudData = cloudData;
-                        showSyncConflict(localData, cloudData);
-                    } else {
-                        await saveToFirestore(false);
-                        print('✓ Cloud gespeichert', 'success');
+            if (wasOffline) {
+                print('✓ Verbindung wiederhergestellt', 'success');
+                
+                if (currentUser) {
+                    const cloudData = await loadFromFirestore();
+                    if (cloudData) {
+                        const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
+                        const localTime = localData.lastUpdate || 0;
+                        const cloudTime = cloudData.lastUpdate || 0;
+                        
+                        // Only show conflict if significant difference (more than 1 minute)
+                        if (Math.abs(localTime - cloudTime) > 60000) {
+                            if (localTime > cloudTime) {
+                                pendingCloudData = cloudData;
+                                showSyncConflict(localData, cloudData);
+                            } else {
+                                // Cloud is newer, use it
+                                Object.assign(game, cloudData);
+                                game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
+                                    startTime: Date.now() - (item.elapsed || 0)
+                                }));
+                                game.applesGrowing = (game.applesGrowing || []).map(item => ({
+                                    startTime: Date.now() - (item.elapsed || 0)
+                                }));
+                                game.flourProducing = (game.flourProducing || []).map(item => ({
+                                    startTime: Date.now() - (item.elapsed || 0)
+                                }));
+                                saveLocal();
+                                updateDisplay();
+                                print('✓ Cloud-Daten synchronisiert', 'success');
+                            }
+                        } else {
+                            // Auto-merge (use local, sync to cloud)
+                            await saveToFirestore(true);
+                        }
                     }
+                    startCloudSync();
                 }
             }
         });
@@ -1356,21 +1428,25 @@
         window.addEventListener('offline', () => {
             isOnline = false;
             updateSyncStatus();
-            print('⚠️ Offline-Modus - Speicherung lokal', 'warning');
+            print('⚠️ Offline-Modus - Daten werden lokal gespeichert', 'warning');
+            stopCloudSync();
         });
 
         // Auth state observer
         onAuthStateChanged(auth, (user) => {
-            currentUser = user;
+            if (user && !currentUser) {
+                currentUser = user;
+                startCloudSync();
+            } else if (!user && currentUser) {
+                currentUser = null;
+                stopCloudSync();
+            }
             updateSyncStatus();
         });
 
-        // Auto-save (local every 10s, cloud every 60s if online)
+        // Auto-save local every 10 seconds - ALWAYS
         setInterval(() => {
             saveLocal();
-            if (currentUser && isOnline && Date.now() - lastSync > 60000) {
-                saveToFirestore(true);
-            }
         }, 10000);
 
         // Update display every second
