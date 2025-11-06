@@ -1248,40 +1248,40 @@ if ('serviceWorker' in navigator) {
             },
 
             produce: (args) => {
-                const type = args[0];
-                let amount = 1;
-                if (args.length > 1) {
-                    const parsed = parseInt(args[1]);
-                    if (isNaN(parsed) || parsed < 1) {
-                        print('❌ Ungültige Anzahl!', 'error');
-                        return;
-                    }
-                    amount = parsed;
-                }
+              const type = args[0];  
+              let amount = 1;
+             if (args.length > 1) {
+        const parsed = parseInt(args[1]);
+        if (isNaN(parsed) || parsed < 1) {
+            print('❌ Ungültige Anzahl!', 'error');
+            return;
+        }
+        amount = parsed;
+    }
 
-                if (type === 'flour') {
-                    const available = game.mills - game.flourProducing.length;
-                    if (amount > available) {
-                        print(`❌ Nur ${available} Mühlen verfügbar!`, 'error');
-                        return;
-                    }
-                    const wheatNeeded = amount * 2;
-                    if (game.wheat < wheatNeeded) {
-                        print(`❌ Du brauchst ${wheatNeeded} Weizen!', 'error');
-                        return;
-                    }
-                    game.wheat -= wheatNeeded;
-                    for (let i = 0; i < amount; i++) {
-                        game.flourProducing.push({ startTime: Date.now() });
-                    }
-                    print(`✓ ${amount}x Mehl wird produziert! (120s)`, 'success');
-                } else {
-                    print('❌ Nutze: flour', 'error');
-                    return;
-                }
-                saveLocal();
-                updateDisplay();
-            },
+    if (type === 'flour') {
+        const available = game.mills - game.flourProducing.length;
+        if (amount > available) {
+            print(`❌ Nur ${available} Mühlen verfügbar!`, 'error');
+            return;
+        }
+        const wheatNeeded = amount * 2;
+        if (game.wheat < wheatNeeded) {
+            print(`❌ Du brauchst ${wheatNeeded} Weizen!`, 'error');  // ← HIER WAR DER FEHLER
+            return;
+        }
+        game.wheat -= wheatNeeded;
+        for (let i = 0; i < amount; i++) {
+            game.flourProducing.push({ startTime: Date.now() });
+        }
+        print(`✓ ${amount}x Mehl wird produziert! (120s)`, 'success');
+    } else {
+        print('❌ Nutze: flour', 'error');
+        return;
+    }
+    saveLocal();
+    updateDisplay();
+},
 
             harvest: (args) => {
                 const type = args[0];
