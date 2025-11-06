@@ -15,9 +15,9 @@ if ('serviceWorker' in navigator) {
     <meta name="theme-color" content="#0a0a0a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Term-Farm">
+    <meta name="apple-mobile-web-app-title" content="Terminal Farm">
     <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0a'/><rect x='10' y='10' width='80' height='80' fill='none' stroke='%2300ff00' stroke-width='5'/><text x='50' y='65' font-size='40' text-anchor='middle' fill='%2300ff00' font-family='monospace'>TF</text></svg>">
     <title>Terminal Farm - Befehlszeilen Farmspiel</title>
     <style>
         * {
@@ -41,8 +41,8 @@ if ('serviceWorker' in navigator) {
             flex-direction: column;
         }
 
-        /* Screen Size Warning */
-        #screenWarning {
+        /* Blocking Screens */
+        .blocking-screen {
             display: none;
             position: fixed;
             top: 0;
@@ -58,72 +58,78 @@ if ('serviceWorker' in navigator) {
             text-align: center;
         }
 
-        #screenWarning.active {
+        .blocking-screen.active {
             display: flex;
         }
 
-        .warning-icon {
+        .blocking-icon {
             font-size: 80px;
             margin-bottom: 20px;
+            animation: pulse 2s infinite;
         }
 
-        .warning-text {
-            font-size: 20px;
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .blocking-title {
+            font-size: 24px;
             color: #ffaa00;
-            margin-bottom: 10px;
-        }
-
-        .warning-subtext {
-            font-size: 14px;
-            color: #00aaff;
-            max-width: 400px;
-        }
-
-        /* PWA Install Banner */
-        #pwaInstallBanner {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #001100;
-            border: 2px solid #00ff00;
-            padding: 20px;
-            border-radius: 10px;
-            z-index: 9999;
-            max-width: 90%;
-            text-align: center;
-            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.3);
-        }
-
-        #pwaInstallBanner.active {
-            display: block;
-        }
-
-        .pwa-title {
-            font-size: 18px;
-            color: #00ff00;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
             font-weight: bold;
         }
 
-        .pwa-text {
-            font-size: 14px;
+        .blocking-text {
+            font-size: 16px;
             color: #00aaff;
+            max-width: 500px;
             margin-bottom: 15px;
+            line-height: 1.6;
         }
 
-        .pwa-benefits {
+        .blocking-steps {
             text-align: left;
-            margin: 15px 0;
-            color: #ffaa00;
-            font-size: 13px;
+            margin: 20px 0;
+            max-width: 500px;
         }
 
-        .pwa-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
+        .blocking-steps div {
+            color: #00ff00;
+            margin: 10px 0;
+            padding: 10px;
+            background: #001100;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+
+        .btn {
+            background: #001100;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            padding: 12px 30px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            transition: all 0.3s;
+            white-space: nowrap;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            background: #00ff00;
+            color: #000;
+            transform: scale(1.05);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn.large {
+            padding: 20px 40px;
+            font-size: 20px;
+            font-weight: bold;
         }
 
         #header {
@@ -156,35 +162,37 @@ if ('serviceWorker' in navigator) {
             align-items: center;
         }
 
-        .btn {
-            background: #001100;
-            border: 1px solid #00ff00;
-            color: #00ff00;
+        .btn.header-btn {
             padding: 8px 15px;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
             font-size: 14px;
-            transition: all 0.3s;
-            white-space: nowrap;
+            margin: 0;
         }
 
-        .btn:hover {
-            background: #00ff00;
-            color: #000;
+        .sync-badge {
+            font-size: 14px;
+            padding: 8px 15px;
+            border: 2px solid;
+            border-radius: 5px;
+            font-weight: bold;
         }
 
-        .btn:active {
-            transform: scale(0.95);
-        }
-
-        .btn.danger {
-            border-color: #ff0000;
+        .sync-badge.offline {
             color: #ff0000;
+            border-color: #ff0000;
+            background: #220000;
         }
 
-        .btn.danger:hover {
-            background: #ff0000;
-            color: #fff;
+        .sync-badge.online {
+            color: #00ff00;
+            border-color: #00ff00;
+            background: #002200;
+        }
+
+        .sync-badge.syncing {
+            color: #ffaa00;
+            border-color: #ffaa00;
+            background: #221100;
+            animation: pulse 1s infinite;
         }
 
         #terminal {
@@ -278,7 +286,7 @@ if ('serviceWorker' in navigator) {
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.95);
-            z-index: 1000;
+            z-index: 9000;
             overflow: hidden;
         }
 
@@ -292,9 +300,9 @@ if ('serviceWorker' in navigator) {
             background: #0a0a0a;
             border: 2px solid #00ff00;
             padding: 30px;
-            max-width: 600px;
+            max-width: 700px;
             width: 90%;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
         }
 
@@ -311,87 +319,93 @@ if ('serviceWorker' in navigator) {
         }
 
         .modal-title {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: bold;
             margin-bottom: 20px;
-            color: #00ff00;
+            color: #ffaa00;
             text-align: center;
         }
 
         .modal-item {
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #00ff00;
             margin-bottom: 10px;
             background: #001100;
         }
 
-        .close-modal {
-            margin-top: 20px;
-            width: 100%;
+        .save-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 25px 0;
         }
 
-        .sync-status {
-            font-size: 12px;
+        .save-card {
+            border: 3px solid #00ff00;
+            padding: 20px;
+            background: #001100;
+            position: relative;
+        }
+
+        .save-card.recommended {
+            border-color: #ffaa00;
+            box-shadow: 0 0 20px rgba(255, 170, 0, 0.5);
+        }
+
+        .save-card-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ffaa00;
+            color: #000;
             padding: 5px 10px;
-            border: 1px solid;
+            font-size: 12px;
+            font-weight: bold;
             border-radius: 3px;
         }
 
-        .sync-status.offline {
-            color: #ff0000;
-            border-color: #ff0000;
-            background: #220000;
-        }
-
-        .sync-status.online {
+        .save-card-title {
+            font-weight: bold;
+            margin-bottom: 15px;
+            font-size: 18px;
             color: #00ff00;
-            border-color: #00ff00;
-            background: #002200;
         }
 
-        .sync-status.syncing {
-            color: #ffaa00;
-            border-color: #ffaa00;
-            background: #221100;
-            animation: pulse 1s infinite;
+        .save-stat {
+            margin: 8px 0;
+            font-size: 14px;
+            padding: 5px;
+            background: #000a00;
         }
 
-        .sync-status.local {
-            color: #ffaa00;
-            border-color: #ffaa00;
-            background: #221100;
+        .choice-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        .choice-buttons .btn {
+            flex: 1;
+            margin: 0;
         }
 
         .tutorial-step {
             background: #001100;
             border: 2px solid #ffaa00;
             padding: 20px;
-            margin: 10px 0;
+            margin: 15px 0;
+            border-radius: 5px;
         }
 
         .tutorial-step h3 {
             color: #ffaa00;
             margin-bottom: 10px;
-        }
-
-        .choice-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .choice-buttons .btn {
-            flex: 1;
+            font-size: 18px;
         }
 
         .status-item {
             margin-bottom: 15px;
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #00ff00;
             background: #001100;
         }
@@ -399,47 +413,14 @@ if ('serviceWorker' in navigator) {
         .status-item-title {
             color: #ffaa00;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            font-size: 16px;
         }
 
         .status-item-content {
             color: #00ff00;
             margin-left: 10px;
-        }
-
-        .device-info {
-            font-size: 12px;
-            color: #00aaff;
             margin-top: 5px;
-        }
-
-        .save-comparison {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin: 20px 0;
-        }
-
-        .save-card {
-            border: 2px solid #00ff00;
-            padding: 15px;
-            background: #001100;
-        }
-
-        .save-card.recommended {
-            border-color: #ffaa00;
-            box-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
-        }
-
-        .save-card-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-
-        .save-stat {
-            margin: 5px 0;
-            font-size: 13px;
         }
 
         @media (max-width: 768px) {
@@ -451,50 +432,82 @@ if ('serviceWorker' in navigator) {
 </head>
 <body>
     <!-- Screen Size Warning -->
-    <div id="screenWarning">
-        <div class="warning-icon">📱❌</div>
-        <div class="warning-text">Bildschirm zu klein</div>
-        <div class="warning-subtext">
-            Terminal Farm kann auf diesem Gerät nicht genutzt werden.<br><br>
-            Bitte verwende ein Tablet, iPad oder Computer für das beste Spielerlebnis.<br><br>
-            Mindestens 768px Breite erforderlich.
+    <div id="screenWarning" class="blocking-screen">
+        <div class="blocking-icon">📱❌</div>
+        <div class="blocking-title">Bildschirm zu klein</div>
+        <div class="blocking-text">
+            Terminal Farm benötigt einen größeren Bildschirm.<br><br>
+            <strong>Mindestanforderungen:</strong><br>
+            • Breite: 768px<br>
+            • Höhe: 600px<br><br>
+            Bitte verwende ein Tablet, iPad oder Computer.
         </div>
     </div>
 
-    <!-- PWA Install Banner -->
-    <div id="pwaInstallBanner">
-        <div class="pwa-title">🌾 Terminal Farm installieren</div>
-        <div class="pwa-text">
-            Installiere Terminal Farm als App für das beste Erlebnis!
+    <!-- PWA Required Screen -->
+    <div id="pwaRequired" class="blocking-screen">
+        <div class="blocking-icon">📱</div>
+        <div class="blocking-title">App-Installation erforderlich</div>
+        <div class="blocking-text">
+            Terminal Farm muss als App installiert werden, um optimal zu funktionieren.
         </div>
-        <div class="pwa-benefits">
-            ✓ Offline spielen<br>
-            ✓ Schneller Zugriff<br>
-            ✓ Automatische Synchronisation<br>
-            ✓ Wie eine native App
+        <div class="blocking-steps">
+            <div><strong>📱 iOS (Safari):</strong><br>Teilen → Zum Home-Bildschirm</div>
+            <div><strong>🤖 Android (Chrome):</strong><br>Menü (⋮) → App installieren</div>
+            <div><strong>💻 Desktop (Chrome/Edge):</strong><br>Adressleiste → App installieren (⊕)</div>
         </div>
-        <div class="pwa-buttons">
-            <button class="btn" id="installPWABtn">Jetzt installieren</button>
-            <button class="btn" id="dismissPWABtn">Später</button>
-        </div>
-    </div>
-
-    <div id="header">
-        <div class="title">🌾 TERMINAL FARM v2.1 🌾</div>
-        <div id="money-display">💰 0 €</div>
-        <div class="header-buttons">
-            <span class="sync-status local" id="syncStatus">● Lokal</span>
-            <button class="btn" id="statusBtn">📊 Status</button>
-            <button class="btn" id="inventoryBtn">📦 Inventar</button>
-            <button class="btn" id="settingsBtn">⚙️ Einstellungen</button>
+        <div class="blocking-text" style="color: #ffaa00; margin-top: 20px;">
+            Nach der Installation öffne die App vom Home-Bildschirm!
         </div>
     </div>
 
-    <div id="terminal"></div>
+    <!-- Login Required Screen -->
+    <div id="loginRequired" class="blocking-screen">
+        <div class="blocking-icon">🔐</div>
+        <div class="blocking-title">Anmeldung erforderlich</div>
+        <div class="blocking-text">
+            Melde dich mit GitHub an, um Terminal Farm zu nutzen.<br><br>
+            <strong>Vorteile:</strong>
+        </div>
+        <div class="blocking-steps">
+            <div>✓ Sichere Cloud-Speicherung</div>
+            <div>✓ Spielstand auf mehreren Geräten</div>
+            <div>✓ Automatische Synchronisation</div>
+            <div>✓ Datenverlust unmöglich</div>
+        </div>
+        <button class="btn large" id="loginBtn">Mit GitHub anmelden</button>
+        <div class="blocking-text" style="color: #00aaff; margin-top: 20px; font-size: 14px;">
+            Deine Daten sind sicher und verschlüsselt.
+        </div>
+    </div>
 
-    <div id="input-line">
-        <span id="prompt">farm@terminal:~$</span>
-        <input type="text" id="input" autocomplete="off" autofocus>
+    <!-- Sync Conflict Modal -->
+    <div id="syncConflictModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">⚠️ SPIELSTAND WÄHLEN</div>
+            <div id="syncConflictContent"></div>
+        </div>
+    </div>
+
+    <!-- Main Game UI -->
+    <div id="gameContainer" style="display: none; flex: 1; display: flex; flex-direction: column;">
+        <div id="header">
+            <div class="title">🌾 TERMINAL FARM 🌾</div>
+            <div id="money-display">💰 0 €</div>
+            <div class="header-buttons">
+                <span class="sync-badge online" id="syncBadge">● Online</span>
+                <button class="btn header-btn" id="statusBtn">📊 Status</button>
+                <button class="btn header-btn" id="inventoryBtn">📦 Inventar</button>
+                <button class="btn header-btn" id="settingsBtn">⚙️</button>
+            </div>
+        </div>
+
+        <div id="terminal"></div>
+
+        <div id="input-line">
+            <span id="prompt">farm@terminal:~$</span>
+            <input type="text" id="input" autocomplete="off" autofocus>
+        </div>
     </div>
 
     <!-- Status Modal -->
@@ -502,7 +515,7 @@ if ('serviceWorker' in navigator) {
         <div class="modal-content">
             <div class="modal-title">📊 FARM STATUS</div>
             <div id="statusContent"></div>
-            <button class="btn close-modal" id="closeStatusBtn">Schließen</button>
+            <button class="btn" style="width: 100%; margin-top: 20px;" id="closeStatusBtn">Schließen</button>
         </div>
     </div>
 
@@ -511,7 +524,7 @@ if ('serviceWorker' in navigator) {
         <div class="modal-content">
             <div class="modal-title">📦 INVENTAR</div>
             <div id="inventoryContent"></div>
-            <button class="btn close-modal" id="closeInventoryBtn">Schließen</button>
+            <button class="btn" style="width: 100%; margin-top: 20px;" id="closeInventoryBtn">Schließen</button>
         </div>
     </div>
 
@@ -520,7 +533,7 @@ if ('serviceWorker' in navigator) {
         <div class="modal-content">
             <div class="modal-title">⚙️ EINSTELLUNGEN</div>
             <div id="settingsContent"></div>
-            <button class="btn close-modal" id="closeSettingsBtn">Schließen</button>
+            <button class="btn" style="width: 100%; margin-top: 20px;" id="closeSettingsBtn">Schließen</button>
         </div>
     </div>
 
@@ -529,38 +542,6 @@ if ('serviceWorker' in navigator) {
         <div class="modal-content">
             <div class="modal-title">🎓 WILLKOMMEN BEI TERMINAL FARM!</div>
             <div id="tutorialContent"></div>
-        </div>
-    </div>
-
-    <!-- Login Choice Modal -->
-    <div id="loginChoiceModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-title">☁️ CLOUD-SPEICHERUNG</div>
-            <div id="loginChoiceContent">
-                <p style="margin-bottom: 20px; color: #00aaff;">
-                    Möchtest du dich mit GitHub verbinden, um deine Daten in der Cloud zu speichern?
-                </p>
-                <p style="margin-bottom: 20px; color: #ffaa00;">
-                    Vorteile:
-                </p>
-                <ul style="margin-left: 20px; margin-bottom: 20px; color: #00ff00;">
-                    <li>✓ Daten auf mehreren Geräten synchronisieren</li>
-                    <li>✓ Sicheres Cloud-Backup</li>
-                    <li>✓ Offline-Spielstand wird geschützt</li>
-                </ul>
-                <div class="choice-buttons">
-                    <button class="btn" id="acceptLoginBtn">Mit GitHub verbinden</button>
-                    <button class="btn" id="declineLoginBtn">Später</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Sync Conflict Modal -->
-    <div id="syncConflictModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-title">⚠️ SPEICHERSTAND WÄHLEN</div>
-            <div id="syncConflictContent"></div>
         </div>
     </div>
 
@@ -588,86 +569,39 @@ if ('serviceWorker' in navigator) {
         const provider = new GithubAuthProvider();
 
         // ============================================
-        // DEVICE & PWA DETECTION
+        // STRICT ACCESS CONTROL
         // ============================================
-        
-        // Generate unique device ID
-        function getDeviceId() {
-            let deviceId = localStorage.getItem('termFarmDeviceId');
-            if (!deviceId) {
-                deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('termFarmDeviceId', deviceId);
-            }
-            return deviceId;
-        }
 
-        const DEVICE_ID = getDeviceId();
-
-        // Check if running as installed PWA
+        // Check if PWA
         function isPWA() {
             return window.matchMedia('(display-mode: standalone)').matches || 
                    window.navigator.standalone === true ||
                    document.referrer.includes('android-app://');
         }
 
-        const IS_PWA = isPWA();
-
         // Check screen size
         function checkScreenSize() {
-            const minWidth = 768;
-            const minHeight = 600;
-            
-            if (window.innerWidth < minWidth || window.innerHeight < minHeight) {
-                document.getElementById('screenWarning').classList.add('active');
-                return false;
-            } else {
-                document.getElementById('screenWarning').classList.remove('active');
-                return true;
-            }
+            return window.innerWidth >= 768 && window.innerHeight >= 600;
         }
 
-        // PWA Installation
-        let deferredPrompt;
+        // Show/hide blocking screens
+        function updateAccessControl() {
+            const screenOK = checkScreenSize();
+            const pwaOK = isPWA();
+            const loginOK = currentUser !== null;
 
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            
-            // Only show if not already installed and user hasn't dismissed it recently
-            if (!IS_PWA && !localStorage.getItem('pwaDismissed')) {
-                setTimeout(() => {
-                    document.getElementById('pwaInstallBanner').classList.add('active');
-                }, 3000);
-            }
-        });
+            document.getElementById('screenWarning').classList.toggle('active', !screenOK);
+            document.getElementById('pwaRequired').classList.toggle('active', screenOK && !pwaOK);
+            document.getElementById('loginRequired').classList.toggle('active', screenOK && pwaOK && !loginOK);
+            document.getElementById('gameContainer').style.display = (screenOK && pwaOK && loginOK) ? 'flex' : 'none';
 
-        document.getElementById('installPWABtn').addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                
-                if (outcome === 'accepted') {
-                    print('✓ App wird installiert...', 'success');
-                }
-                
-                deferredPrompt = null;
-                document.getElementById('pwaInstallBanner').classList.remove('active');
-            }
-        });
-
-        document.getElementById('dismissPWABtn').addEventListener('click', () => {
-            document.getElementById('pwaInstallBanner').classList.remove('active');
-            localStorage.setItem('pwaDismissed', Date.now().toString());
-        });
-
-        // Check on load and resize
-        checkScreenSize();
-        window.addEventListener('resize', checkScreenSize);
+            return screenOK && pwaOK && loginOK;
+        }
 
         // ============================================
         // GAME STATE
         // ============================================
-        
+
         let game = {
             money: 50,
             wheat: 0,
@@ -680,11 +614,7 @@ if ('serviceWorker' in navigator) {
             applesGrowing: [],
             flourProducing: [],
             tutorialCompleted: false,
-            loginChoiceShown: false,
-            deviceId: DEVICE_ID,
-            isPWA: IS_PWA,
             lastUpdate: Date.now(),
-            playTime: 0,
             prices: {
                 wheat: 8,
                 apple: 15,
@@ -704,36 +634,19 @@ if ('serviceWorker' in navigator) {
         let isOnline = navigator.onLine;
         let lastSync = 0;
         let isSyncing = false;
-        let syncInterval = null;
-        let pendingCloudData = null;
         let lastConnectionState = isOnline;
-        let appStartTime = Date.now();
+        let pendingCloudData = null;
 
         // DOM Elements
         const terminal = document.getElementById('terminal');
         const input = document.getElementById('input');
         const moneyDisplay = document.getElementById('money-display');
-        const syncStatus = document.getElementById('syncStatus');
-
-        // Button listeners
-        document.getElementById('statusBtn').addEventListener('click', openStatus);
-        document.getElementById('inventoryBtn').addEventListener('click', openInventory);
-        document.getElementById('settingsBtn').addEventListener('click', openSettings);
-        document.getElementById('closeStatusBtn').addEventListener('click', closeStatus);
-        document.getElementById('closeInventoryBtn').addEventListener('click', closeInventory);
-        document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
-        document.getElementById('acceptLoginBtn').addEventListener('click', acceptLogin);
-        document.getElementById('declineLoginBtn').addEventListener('click', declineLogin);
-
-        // Prevent body scroll
-        document.body.style.overflow = 'hidden';
-        document.documentElement.style.overflow = 'hidden';
+        const syncBadge = document.getElementById('syncBadge');
 
         // ============================================
-        // PROFESSIONAL SYNC SYSTEM
+        // PRINT & DISPLAY
         // ============================================
 
-        // Print function
         function print(text, className = '') {
             const line = document.createElement('div');
             line.className = 'output-line ' + className;
@@ -742,37 +655,31 @@ if ('serviceWorker' in navigator) {
             terminal.scrollTop = terminal.scrollHeight;
         }
 
-        // Update display
         function updateDisplay() {
             moneyDisplay.textContent = `💰 ${game.money} €`;
-            updateSyncStatus();
+            updateSyncBadge();
         }
 
-        // Update sync status
-        function updateSyncStatus() {
+        function updateSyncBadge() {
             if (isSyncing) {
-                syncStatus.className = 'sync-status syncing';
-                syncStatus.textContent = '⟳ Sync...';
+                syncBadge.className = 'sync-badge syncing';
+                syncBadge.textContent = '⟳ Sync...';
             } else if (!isOnline) {
-                syncStatus.className = 'sync-status offline';
-                syncStatus.textContent = '● Offline';
-            } else if (currentUser) {
-                syncStatus.className = 'sync-status online';
-                const lastSyncText = lastSync > 0 ? Math.floor((Date.now() - lastSync) / 1000) + 's' : '∞';
-                syncStatus.textContent = `● Online (${lastSyncText})`;
+                syncBadge.className = 'sync-badge offline';
+                syncBadge.textContent = '● Offline';
             } else {
-                syncStatus.className = 'sync-status local';
-                syncStatus.textContent = '● Lokal';
+                syncBadge.className = 'sync-badge online';
+                syncBadge.textContent = '● Online';
             }
         }
 
-        // Save to localStorage - ALWAYS
+        // ============================================
+        // STORAGE FUNCTIONS
+        // ============================================
+
         function saveLocal() {
             try {
                 game.lastUpdate = Date.now();
-                game.deviceId = DEVICE_ID;
-                game.isPWA = IS_PWA;
-                
                 const data = {
                     ...game,
                     wheatGrowing: game.wheatGrowing.map(item => ({
@@ -784,16 +691,14 @@ if ('serviceWorker' in navigator) {
                     flourProducing: game.flourProducing.map(item => ({
                         elapsed: Date.now() - item.startTime
                     })),
-                    version: '2.1'
+                    version: '2.2'
                 };
-                
                 localStorage.setItem('terminalFarmSave', JSON.stringify(data));
             } catch (error) {
                 console.error('Local save failed:', error);
             }
         }
 
-        // Load from localStorage
         function loadLocal() {
             try {
                 const saved = localStorage.getItem('terminalFarmSave');
@@ -809,28 +714,20 @@ if ('serviceWorker' in navigator) {
                     game.flourProducing = (game.flourProducing || []).map(item => ({
                         startTime: Date.now() - (item.elapsed || 0)
                     }));
-                    
-                    // Update device info
-                    game.deviceId = DEVICE_ID;
-                    game.isPWA = IS_PWA;
                 }
             } catch (error) {
                 console.error('Local load failed:', error);
             }
         }
 
-        // Save to Firestore - PROFESSIONAL
-        async function saveToFirestore(silent = true) {
+        async function saveToFirestore() {
             if (!currentUser || isSyncing || !isOnline) return;
             
             try {
                 isSyncing = true;
-                updateSyncStatus();
+                updateSyncBadge();
                 
                 game.lastUpdate = Date.now();
-                game.deviceId = DEVICE_ID;
-                game.isPWA = IS_PWA;
-                
                 const data = {
                     ...game,
                     wheatGrowing: game.wheatGrowing.map(item => ({
@@ -843,212 +740,120 @@ if ('serviceWorker' in navigator) {
                         elapsed: Date.now() - item.startTime
                     })),
                     syncedAt: Date.now(),
-                    version: '2.1'
+                    version: '2.2'
                 };
                 
                 await setDoc(doc(db, "farms", currentUser.uid), data);
                 lastSync = Date.now();
-                
-                if (!silent) {
-                    print('✓ Cloud-Synchronisation erfolgreich', 'success');
-                }
             } catch (error) {
                 console.error('Cloud save failed:', error);
-                if (!silent) {
-                    print('❌ Cloud-Sync fehlgeschlagen', 'error');
-                }
             } finally {
                 isSyncing = false;
-                updateSyncStatus();
+                updateSyncBadge();
             }
         }
 
-        // Load from Firestore
         async function loadFromFirestore() {
             if (!currentUser) return null;
             
             try {
                 const docRef = doc(db, "farms", currentUser.uid);
                 const docSnap = await getDoc(docRef);
-                
-                if (docSnap.exists()) {
-                    return docSnap.data();
-                }
-                return null;
+                return docSnap.exists() ? docSnap.data() : null;
             } catch (error) {
                 console.error('Cloud load failed:', error);
                 return null;
             }
         }
 
-        // INTELLIGENT SYNC CONFLICT RESOLUTION
-        function compareSaves(local, cloud) {
-            const localTime = local.lastUpdate || 0;
-            const cloudTime = cloud.lastUpdate || 0;
-            const timeDiff = Math.abs(localTime - cloudTime);
-            
-            // If time difference is less than 30 seconds, auto-merge (use newer)
-            if (timeDiff < 30000) {
-                return localTime > cloudTime ? 'local' : 'cloud';
-            }
-            
-            // Calculate progress scores
-            const localScore = (local.money || 0) + 
-                              (local.wheat || 0) * 8 + 
-                              (local.apples || 0) * 15 + 
-                              (local.flour || 0) * 25 +
-                              (local.wheatFields || 0) * 100 +
-                              (local.appleTrees || 0) * 200 +
-                              (local.mills || 0) * 400;
-                              
-            const cloudScore = (cloud.money || 0) + 
-                               (cloud.wheat || 0) * 8 + 
-                               (cloud.apples || 0) * 15 + 
-                               (cloud.flour || 0) * 25 +
-                               (cloud.wheatFields || 0) * 100 +
-                               (cloud.appleTrees || 0) * 200 +
-                               (cloud.mills || 0) * 400;
-            
-            // If scores are very similar (within 10%), use newer
-            const scoreDiff = Math.abs(localScore - cloudScore);
-            const avgScore = (localScore + cloudScore) / 2;
-            
-            if (scoreDiff / avgScore < 0.1) {
-                return localTime > cloudTime ? 'local' : 'cloud';
-            }
-            
-            // If one is significantly ahead (>20% more progress), recommend it
-            if (localScore > cloudScore * 1.2) {
-                return 'local-recommended';
-            } else if (cloudScore > localScore * 1.2) {
-                return 'cloud-recommended';
-            }
-            
-            // Otherwise, ask user
-            return 'ask';
-        }
+        // ============================================
+        // SMART SYNC WITH ALWAYS ASK USER
+        // ============================================
 
-        // Show sync conflict modal
-        function showSyncConflict(localData, cloudData, recommendation) {
+        function showSyncConflict(localData, cloudData, reason) {
             const modal = document.getElementById('syncConflictModal');
             const content = document.getElementById('syncConflictContent');
             
             const localDate = new Date(localData.lastUpdate || 0);
             const cloudDate = new Date(cloudData.lastUpdate || 0);
             
-            const localDevice = localData.isPWA ? '📱 App' : '🌐 Browser';
-            const cloudDevice = cloudData.isPWA ? '📱 App' : '🌐 Browser';
+            const localScore = calculateProgress(localData);
+            const cloudScore = calculateProgress(cloudData);
+            const localRecommended = localScore >= cloudScore;
             
-            const localRecommended = recommendation === 'local-recommended';
-            const cloudRecommended = recommendation === 'cloud-recommended';
+            let reasonText = '';
+            if (reason === 'app-open') {
+                reasonText = '📱 App wurde geöffnet';
+            } else if (reason === 'online') {
+                reasonText = '🌐 Verbindung wiederhergestellt';
+            } else if (reason === 'offline-to-online') {
+                reasonText = '🔄 Von Offline zu Online gewechselt';
+            }
             
             content.innerHTML = `
-                <p style="margin-bottom: 20px; color: #ffaa00;">
-                    Du hast auf verschiedenen Geräten gespielt. Welchen Spielstand möchtest du behalten?
-                </p>
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <div style="color: #ffaa00; font-size: 18px; margin-bottom: 10px;">${reasonText}</div>
+                    <div style="color: #00aaff; font-size: 14px;">
+                        Welchen Spielstand möchtest du verwenden?
+                    </div>
+                </div>
                 
                 <div class="save-comparison">
                     <div class="save-card ${localRecommended ? 'recommended' : ''}">
-                        <div class="save-card-title" style="color: ${localRecommended ? '#ffaa00' : '#00ff00'};">
-                            💾 LOKALER SPEICHERSTAND ${localRecommended ? '⭐' : ''}
+                        ${localRecommended ? '<div class="save-card-badge">⭐ EMPFOHLEN</div>' : ''}
+                        <div class="save-card-title">💾 LOKALER SPIELSTAND</div>
+                        <div class="save-stat"><strong>📅 Datum:</strong> ${localDate.toLocaleString('de-DE')}</div>
+                        <div class="save-stat"><strong>💰 Geld:</strong> ${localData.money} €</div>
+                        <div class="save-stat"><strong>🌾 Weizen:</strong> ${localData.wheat}</div>
+                        <div class="save-stat"><strong>🍎 Äpfel:</strong> ${localData.apples}</div>
+                        <div class="save-stat"><strong>🏺 Mehl:</strong> ${localData.flour}</div>
+                        <div class="save-stat"><strong>🏗️ Felder:</strong> ${localData.wheatFields || 0}</div>
+                        <div class="save-stat"><strong>🌳 Bäume:</strong> ${localData.appleTrees || 0}</div>
+                        <div class="save-stat"><strong>⚙️ Mühlen:</strong> ${localData.mills || 0}</div>
+                        <div class="save-stat" style="background: #002200; color: #00ff00; margin-top: 10px;">
+                            <strong>📊 Fortschritt:</strong> ${localScore} Punkte
                         </div>
-                        <div class="save-stat">📅 ${localDate.toLocaleString('de-DE')}</div>
-                        <div class="save-stat">💰 ${localData.money} €</div>
-                        <div class="save-stat">🌾 ${localData.wheat} Weizen</div>
-                        <div class="save-stat">🍎 ${localData.apples} Äpfel</div>
-                        <div class="save-stat">🏺 ${localData.flour} Mehl</div>
-                        <div class="save-stat">🏗️ ${localData.wheatFields || 0} Felder</div>
-                        <div class="device-info">${localDevice} • Dieses Gerät</div>
-                        ${localRecommended ? '<div style="color: #ffaa00; margin-top: 10px; font-weight: bold;">Empfohlen: Mehr Fortschritt</div>' : ''}
                     </div>
                     
-                    <div class="save-card ${cloudRecommended ? 'recommended' : ''}">
-                        <div class="save-card-title" style="color: ${cloudRecommended ? '#ffaa00' : '#00ff00'};">
-                            ☁️ CLOUD-SPEICHERSTAND ${cloudRecommended ? '⭐' : ''}
+                    <div class="save-card ${!localRecommended ? 'recommended' : ''}">
+                        ${!localRecommended ? '<div class="save-card-badge">⭐ EMPFOHLEN</div>' : ''}
+                        <div class="save-card-title">☁️ CLOUD-SPIELSTAND</div>
+                        <div class="save-stat"><strong>📅 Datum:</strong> ${cloudDate.toLocaleString('de-DE')}</div>
+                        <div class="save-stat"><strong>💰 Geld:</strong> ${cloudData.money} €</div>
+                        <div class="save-stat"><strong>🌾 Weizen:</strong> ${cloudData.wheat}</div>
+                        <div class="save-stat"><strong>🍎 Äpfel:</strong> ${cloudData.apples}</div>
+                        <div class="save-stat"><strong>🏺 Mehl:</strong> ${cloudData.flour}</div>
+                        <div class="save-stat"><strong>🏗️ Felder:</strong> ${cloudData.wheatFields || 0}</div>
+                        <div class="save-stat"><strong>🌳 Bäume:</strong> ${cloudData.appleTrees || 0}</div>
+                        <div class="save-stat"><strong>⚙️ Mühlen:</strong> ${cloudData.mills || 0}</div>
+                        <div class="save-stat" style="background: #002200; color: #00ff00; margin-top: 10px;">
+                            <strong>📊 Fortschritt:</strong> ${cloudScore} Punkte
                         </div>
-                        <div class="save-stat">📅 ${cloudDate.toLocaleString('de-DE')}</div>
-                        <div class="save-stat">💰 ${cloudData.money} €</div>
-                        <div class="save-stat">🌾 ${cloudData.wheat} Weizen</div>
-                        <div class="save-stat">🍎 ${cloudData.apples} Äpfel</div>
-                        <div class="save-stat">🏺 ${cloudData.flour} Mehl</div>
-                        <div class="save-stat">🏗️ ${cloudData.wheatFields || 0} Felder</div>
-                        <div class="device-info">${cloudDevice} • Anderes Gerät</div>
-                        ${cloudRecommended ? '<div style="color: #ffaa00; margin-top: 10px; font-weight: bold;">Empfohlen: Mehr Fortschritt</div>' : ''}
                     </div>
                 </div>
                 
                 <div class="choice-buttons">
-                    <button class="btn ${localRecommended ? '' : 'danger'}" id="chooseLocalBtn">
+                    <button class="btn" id="chooseLocalBtn" style="font-size: 16px; padding: 15px;">
                         💾 Lokal verwenden
                     </button>
-                    <button class="btn ${cloudRecommended ? '' : 'danger'}" id="chooseCloudBtn">
+                    <button class="btn" id="chooseCloudBtn" style="font-size: 16px; padding: 15px;">
                         ☁️ Cloud verwenden
                     </button>
                 </div>
             `;
             
-            document.getElementById('chooseLocalBtn').addEventListener('click', chooseLocalSave);
-            document.getElementById('chooseCloudBtn').addEventListener('click', chooseCloudSave);
+            document.getElementById('chooseLocalBtn').addEventListener('click', async () => {
+                modal.classList.remove('active');
+                await saveToFirestore();
+                print('✓ Lokaler Spielstand wird verwendet', 'success');
+                print('✓ Cloud wurde aktualisiert', 'success');
+                print('');
+            });
             
-            modal.classList.add('active');
-        }
-
-        async function chooseLocalSave() {
-            document.getElementById('syncConflictModal').classList.remove('active');
-            await saveToFirestore(false);
-            print('✓ Lokaler Spielstand wird verwendet', 'success');
-            print('✓ Cloud aktualisiert', 'success');
-        }
-
-        function chooseCloudSave() {
-            document.getElementById('syncConflictModal').classList.remove('active');
-            if (pendingCloudData) {
-                Object.assign(game, pendingCloudData);
-                game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
-                    startTime: Date.now() - (item.elapsed || 0)
-                }));
-                game.applesGrowing = (game.applesGrowing || []).map(item => ({
-                    startTime: Date.now() - (item.elapsed || 0)
-                }));
-                game.flourProducing = (game.flourProducing || []).map(item => ({
-                    startTime: Date.now() - (item.elapsed || 0)
-                }));
-                game.deviceId = DEVICE_ID;
-                game.isPWA = IS_PWA;
-                saveLocal();
-                updateDisplay();
-                print('✓ Cloud-Spielstand wird verwendet', 'success');
-            }
-        }
-
-        // SYNC ON APP STATE CHANGE
-        async function performSmartSync() {
-            if (!currentUser || !isOnline) return;
-            
-            print('🔄 Synchronisiere Spielstand...', 'info');
-            
-            const cloudData = await loadFromFirestore();
-            
-            if (!cloudData) {
-                // First time - upload local data
-                await saveToFirestore(false);
-                print('✓ Erstmaliger Upload abgeschlossen', 'success');
-                return;
-            }
-            
-            const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
-            const decision = compareSaves(localData, cloudData);
-            
-            switch (decision) {
-                case 'local':
-                    // Auto-use local (newer and similar progress)
-                    await saveToFirestore(true);
-                    print('✓ Lokaler Spielstand synchronisiert', 'success');
-                    break;
-                    
-                case 'cloud':
-                    // Auto-use cloud (newer and similar progress)
-                    Object.assign(game, cloudData);
+            document.getElementById('chooseCloudBtn').addEventListener('click', () => {
+                modal.classList.remove('active');
+                if (pendingCloudData) {
+                    Object.assign(game, pendingCloudData);
                     game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
                         startTime: Date.now() - (item.elapsed || 0)
                     }));
@@ -1058,91 +863,85 @@ if ('serviceWorker' in navigator) {
                     game.flourProducing = (game.flourProducing || []).map(item => ({
                         startTime: Date.now() - (item.elapsed || 0)
                     }));
-                    game.deviceId = DEVICE_ID;
-                    game.isPWA = IS_PWA;
                     saveLocal();
                     updateDisplay();
-                    print('✓ Cloud-Spielstand synchronisiert', 'success');
-                    break;
-                    
-                case 'local-recommended':
-                case 'cloud-recommended':
-                case 'ask':
-                    // Ask user
-                    pendingCloudData = cloudData;
-                    showSyncConflict(localData, cloudData, decision);
-                    break;
-            }
+                    print('✓ Cloud-Spielstand wird verwendet', 'success');
+                    print('');
+                }
+            });
+            
+            modal.classList.add('active');
         }
 
-        // GitHub Login
+        function calculateProgress(data) {
+            return (data.money || 0) + 
+                   (data.wheat || 0) * 8 + 
+                   (data.apples || 0) * 15 + 
+                   (data.flour || 0) * 25 +
+                   (data.wheatFields || 0) * 100 +
+                   (data.appleTrees || 0) * 200 +
+                   (data.mills || 0) * 400;
+        }
+
+        async function performSmartSync(reason = 'unknown') {
+            if (!currentUser || !isOnline) return;
+            
+            const cloudData = await loadFromFirestore();
+            
+            if (!cloudData) {
+                // First time - upload local data
+                await saveToFirestore();
+                print('✓ Erstmaliger Upload abgeschlossen', 'success');
+                return;
+            }
+            
+            const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
+            
+            // ALWAYS ASK USER
+            pendingCloudData = cloudData;
+            showSyncConflict(localData, cloudData, reason);
+        }
+
+        // ============================================
+        // AUTHENTICATION
+        // ============================================
+
         async function githubLogin() {
             try {
                 const result = await signInWithPopup(auth, provider);
                 currentUser = result.user;
-                print(`✓ Eingeloggt als: ${currentUser.displayName || currentUser.reloadUserInfo?.screenName || 'GitHub User'}`, 'success');
                 
-                await performSmartSync();
-                startCloudSync();
-                updateDisplay();
+                updateAccessControl();
+                
+                if (updateAccessControl()) {
+                    loadLocal();
+                    updateDisplay();
+                    printWelcome();
+                    
+                    // Always ask on first login
+                    await performSmartSync('app-open');
+                    
+                    if (!game.tutorialCompleted) {
+                        setTimeout(startTutorial, 1000);
+                    }
+                }
             } catch (error) {
                 console.error('Login failed:', error);
-                print('❌ Login fehlgeschlagen', 'error');
+                alert('Login fehlgeschlagen. Bitte versuche es erneut.');
             }
         }
 
-        // Logout
         async function logout() {
             try {
-                // Save before logout
                 if (isOnline) {
-                    await saveToFirestore(true);
+                    await saveToFirestore();
                 }
-                
                 await signOut(auth);
                 currentUser = null;
-                stopCloudSync();
-                print('✓ Ausgeloggt', 'success');
-                updateDisplay();
+                updateAccessControl();
             } catch (error) {
                 console.error('Logout failed:', error);
-                print('❌ Logout fehlgeschlagen', 'error');
             }
-        }
-
-        // Cloud sync management
-        function startCloudSync() {
-            if (syncInterval) clearInterval(syncInterval);
-            
-            // Sync every 60 seconds
-            syncInterval = setInterval(async () => {
-                if (currentUser && isOnline && Date.now() - lastSync > 60000) {
-                    await saveToFirestore(true);
-                }
-            }, 60000);
-        }
-
-        function stopCloudSync() {
-            if (syncInterval) {
-                clearInterval(syncInterval);
-                syncInterval = null;
-            }
-        }
-
-        // Login choice
-        function acceptLogin() {
-            document.getElementById('loginChoiceModal').classList.remove('active');
-            game.loginChoiceShown = true;
-            saveLocal();
-            githubLogin();
-        }
-
-        function declineLogin() {
-            document.getElementById('loginChoiceModal').classList.remove('active');
-            game.loginChoiceShown = true;
-            saveLocal();
-            print('Du kannst dich jederzeit über die Einstellungen anmelden!', 'info');
-            print('');
         }
 
         // ============================================
@@ -1237,75 +1036,41 @@ if ('serviceWorker' in navigator) {
             const modal = document.getElementById('settingsModal');
             const content = document.getElementById('settingsContent');
             
-            if (currentUser) {
-                const lastSyncText = lastSync > 0 
-                    ? new Date(lastSync).toLocaleString('de-DE')
-                    : 'Noch nie';
-                
-                const deviceType = IS_PWA ? '📱 Installierte App' : '🌐 Browser';
-                
-                content.innerHTML = `
-                    <div class="modal-item">
-                        <strong>👤 Benutzer:</strong> ${currentUser.displayName || currentUser.reloadUserInfo?.screenName || 'GitHub User'}
-                    </div>
-                    <div class="modal-item">
-                        <strong>📱 Gerät:</strong> ${deviceType}
-                    </div>
-                    <div class="modal-item">
-                        <strong>🆔 Geräte-ID:</strong> ${DEVICE_ID.substr(0, 20)}...
-                    </div>
-                    <div class="modal-item">
-                        <strong>🔗 Status:</strong> <span style="color: #00ff00;">Mit GitHub verbunden</span>
-                    </div>
-                    <div class="modal-item">
-                        <strong>☁️ Cloud-Sync:</strong> <span style="color: #00ff00;">Aktiv (alle 60s)</span>
-                    </div>
-                    <div class="modal-item">
-                        <strong>🕐 Letzte Sync:</strong> ${lastSyncText}
-                    </div>
-                    <button class="btn" style="width: 100%; margin-top: 10px;" id="forceSyncBtn">🔄 Jetzt synchronisieren</button>
-                    <button class="btn danger" style="width: 100%; margin-top: 10px;" id="logoutBtn">Ausloggen</button>
-                `;
-                
-                document.getElementById('logoutBtn').addEventListener('click', () => {
-                    closeSettings();
-                    logout();
-                });
-                
-                document.getElementById('forceSyncBtn').addEventListener('click', async () => {
-                    closeSettings();
-                    await performSmartSync();
-                });
-            } else {
-                const deviceType = IS_PWA ? '📱 Installierte App' : '🌐 Browser';
-                
-                content.innerHTML = `
-                    <div class="modal-item">
-                        <strong>📱 Gerät:</strong> ${deviceType}
-                    </div>
-                    <div class="modal-item">
-                        <strong>🆔 Geräte-ID:</strong> ${DEVICE_ID.substr(0, 20)}...
-                    </div>
-                    <div class="modal-item">
-                        <strong>🔗 Status:</strong> <span style="color: #ffaa00;">Nicht verbunden</span>
-                    </div>
-                    <div class="modal-item">
-                        <strong>💾 Speicherung:</strong> <span style="color: #ffaa00;">Nur lokal (alle 10s)</span>
-                    </div>
-                    ${!IS_PWA ? '<div class="modal-item" style="background: #221100; border-color: #ffaa00;"><strong>💡 Tipp:</strong> Installiere die App für bessere Synchronisation!</div>' : ''}
-                    <div class="modal-item" style="padding: 20px; text-align: center;">
-                        <p style="margin-bottom: 15px; color: #00aaff;">
-                            Verbinde dich mit GitHub für Cloud-Synchronisation auf mehreren Geräten!
-                        </p>
-                        <button class="btn" style="width: 100%;" id="loginBtn">🔗 Mit GitHub verbinden</button>
-                    </div>
-                `;
-                
-                document.getElementById('loginBtn').addEventListener('click', () => {
-                    closeSettings();
-                    githubLogin();
-                });
-            }
+            const lastSyncText = lastSync > 0 
+                ? new Date(lastSync).toLocaleString('de-DE')
+                : 'Noch nie';
+            
+            const username = currentUser?.displayName || 
+                           currentUser?.reloadUserInfo?.screenName || 
+                           currentUser?.email?.split('@')[0] ||
+                           'GitHub User';
+            
+            content.innerHTML = `
+                <div class="modal-item">
+                    <strong>👤 Benutzer:</strong> ${username}
+                </div>
+                <div class="modal-item">
+                    <strong>🕐 Letzte Sync:</strong> ${lastSyncText}
+                </div>
+                <div class="modal-item">
+                    <strong>💾 Lokale Speicherung:</strong> <span style="color: #00ff00;">Alle 10s</span>
+                </div>
+                <div class="modal-item">
+                    <strong>☁️ Cloud-Sync:</strong> <span style="color: #00ff00;">Automatisch</span>
+                </div>
+                <button class="btn" style="width: 100%; margin-top: 15px;" id="forceSyncBtn">🔄 Jetzt synchronisieren</button>
+                <button class="btn" style="width: 100%; margin-top: 10px; border-color: #ff0000; color: #ff0000;" id="logoutBtn">Ausloggen</button>
+            `;
+            
+            document.getElementById('logoutBtn').addEventListener('click', () => {
+                closeSettings();
+                logout();
+            });
+            
+            document.getElementById('forceSyncBtn').addEventListener('click', async () => {
+                closeSettings();
+                await performSmartSync('manual');
+            });
             
             modal.classList.add('active');
         }
@@ -1314,7 +1079,6 @@ if ('serviceWorker' in navigator) {
             document.getElementById('settingsModal').classList.remove('active');
         }
 
-        // Tutorial
         function startTutorial() {
             const modal = document.getElementById('tutorialModal');
             const content = document.getElementById('tutorialContent');
@@ -1335,42 +1099,35 @@ if ('serviceWorker' in navigator) {
                 <div class="tutorial-step">
                     <h3>Schritt 3: Verkaufen 💰</h3>
                     <p>Tippe: <strong style="color: #ffaa00;">sell all</strong></p>
-                    <p>Dies verkauft alles in deinem Inventar und bringt dir Geld!</p>
+                    <p>Dies verkauft alles und bringt dir Geld!</p>
                 </div>
                 
                 <div class="tutorial-step">
                     <h3>Schritt 4: Erweitern 🏗️</h3>
                     <p>Tippe: <strong style="color: #ffaa00;">buy field</strong></p>
-                    <p>Kaufe mehr Felder, Bäume und Mühlen um zu wachsen!</p>
+                    <p>Kaufe mehr Felder, Bäume und Mühlen!</p>
                 </div>
                 
                 <div class="tutorial-step">
                     <h3>Weitere Befehle 📋</h3>
                     <p>Tippe: <strong style="color: #ffaa00;">help</strong></p>
-                    <p>Für eine vollständige Liste aller Befehle.</p>
+                    <p>Für alle Befehle.</p>
                 </div>
                 
-                <button class="btn close-modal" id="closeTutorialBtn" style="width: 100%;">
+                <button class="btn" id="closeTutorialBtn" style="width: 100%; font-size: 18px; padding: 15px;">
                     Los geht's! 🚀
                 </button>
             `;
             
-            document.getElementById('closeTutorialBtn').addEventListener('click', closeTutorial);
-            modal.classList.add('active');
-        }
-
-        function closeTutorial() {
-            document.getElementById('tutorialModal').classList.remove('active');
-            game.tutorialCompleted = true;
-            saveLocal();
-            print('✓ Tutorial abgeschlossen! Viel Erfolg! 🎉', 'success');
-            print('');
+            document.getElementById('closeTutorialBtn').addEventListener('click', () => {
+                document.getElementById('tutorialModal').classList.remove('active');
+                game.tutorialCompleted = true;
+                saveLocal();
+                print('✓ Tutorial abgeschlossen! Viel Erfolg! 🎉', 'success');
+                print('');
+            });
             
-            if (!game.loginChoiceShown && IS_PWA) {
-                setTimeout(() => {
-                    document.getElementById('loginChoiceModal').classList.add('active');
-                }, 500);
-            }
+            modal.classList.add('active');
         }
 
         // ============================================
@@ -1384,47 +1141,30 @@ if ('serviceWorker' in navigator) {
                 print('╚══════════════════════════════════════════════════╝', 'info');
                 print('');
                 print('🌱 ANBAUEN:', 'success');
-                print('  plant wheat [anzahl]  - Weizen anpflanzen (30s)');
-                print('  plant apple [anzahl]  - Äpfel anpflanzen (60s)');
-                print('  produce flour [anzahl] - Mehl herstellen (120s, 2 Weizen)');
+                print('  plant wheat [anzahl]  - Weizen (30s)');
+                print('  plant apple [anzahl]  - Äpfel (60s)');
+                print('  produce flour [anzahl] - Mehl (120s, 2 Weizen)');
                 print('');
                 print('📦 ERNTEN:', 'success');
-                print('  harvest wheat [anzahl] - Weizen ernten');
-                print('  harvest apple [anzahl] - Äpfel ernten');
-                print('  harvest flour [anzahl] - Mehl einsammeln');
-                print('  harvest all           - Alles fertige ernten');
+                print('  harvest wheat/apple/flour [anzahl]');
+                print('  harvest all - Alles ernten');
                 print('');
                 print('💰 VERKAUFEN:', 'success');
-                print('  sell wheat [anzahl]   - Weizen verkaufen (8€)');
-                print('  sell apple [anzahl]   - Äpfel verkaufen (15€)');
-                print('  sell flour [anzahl]   - Mehl verkaufen (25€)');
-                print('  sell all              - Alles verkaufen');
+                print('  sell wheat/apple/flour [anzahl]');
+                print('  sell all - Alles verkaufen');
                 print('');
                 print('🏗️ KAUFEN:', 'success');
-                print('  buy field [anzahl]    - Weizenfeld kaufen (100€)');
-                print('  buy tree [anzahl]     - Apfelbaum kaufen (200€)');
-                print('  buy mill [anzahl]     - Mühle kaufen (400€)');
+                print('  buy field/tree/mill [anzahl]');
                 print('');
                 print('📊 INFO:', 'success');
-                print('  prices    - Zeige Preise');
-                print('  sync      - Spielstand synchronisieren');
-                print('  tutorial  - Tutorial erneut anzeigen');
-                print('  clear     - Bildschirm leeren');
+                print('  prices - Preise anzeigen');
+                print('  sync - Jetzt synchronisieren');
+                print('  clear - Bildschirm leeren');
                 print('');
             },
 
             sync: async () => {
-                if (currentUser && isOnline) {
-                    await performSmartSync();
-                } else if (!currentUser) {
-                    print('❌ Nicht eingeloggt. Nutze die Einstellungen zum Anmelden.', 'error');
-                } else {
-                    print('❌ Keine Internetverbindung', 'error');
-                }
-            },
-
-            tutorial: () => {
-                startTutorial();
+                await performSmartSync('manual');
             },
 
             prices: () => {
@@ -1432,14 +1172,14 @@ if ('serviceWorker' in navigator) {
                 print('║              MARKTPREISE                         ║', 'info');
                 print('╚══════════════════════════════════════════════════╝', 'info');
                 print('');
-                print('💰 VERKAUFSPREISE:', 'success');
+                print('💰 VERKAUF:', 'success');
                 print(`  🌾 Weizen: ${game.prices.wheat} €`);
                 print(`  🍎 Apfel: ${game.prices.apple} €`);
                 print(`  🏺 Mehl: ${game.prices.flour} €`);
                 print('');
-                print('🏗️ KAUFPREISE:', 'warning');
-                print(`  🌾 Weizenfeld: ${game.prices.wheatField} €`);
-                print(`  🍎 Apfelbaum: ${game.prices.appleTree} €`);
+                print('🏗️ KAUF:', 'warning');
+                print(`  🌾 Feld: ${game.prices.wheatField} €`);
+                print(`  🍎 Baum: ${game.prices.appleTree} €`);
                 print(`  ⚙️ Mühle: ${game.prices.mill} €`);
                 print('');
             },
@@ -1477,7 +1217,7 @@ if ('serviceWorker' in navigator) {
                     }
                     print(`✓ ${amount}x Äpfel angepflanzt! (60s)`, 'success');
                 } else {
-                    print('❌ Unbekannter Typ! Nutze: wheat oder apple', 'error');
+                    print('❌ Nutze: wheat oder apple', 'error');
                     return;
                 }
                 saveLocal();
@@ -1504,16 +1244,16 @@ if ('serviceWorker' in navigator) {
                     }
                     const wheatNeeded = amount * 2;
                     if (game.wheat < wheatNeeded) {
-                        print(`❌ Du brauchst ${wheatNeeded} Weizen! (Du hast ${game.wheat})`, 'error');
+                        print(`❌ Du brauchst ${wheatNeeded} Weizen!`, 'error');
                         return;
                     }
                     game.wheat -= wheatNeeded;
                     for (let i = 0; i < amount; i++) {
                         game.flourProducing.push({ startTime: Date.now() });
                     }
-                    print(`✓ ${amount}x Mehl wird produziert! (120s, -${wheatNeeded} Weizen)`, 'success');
+                    print(`✓ ${amount}x Mehl wird produziert! (120s)`, 'success');
                 } else {
-                    print('❌ Unbekannter Typ! Nutze: flour', 'error');
+                    print('❌ Nutze: flour', 'error');
                     return;
                 }
                 saveLocal();
@@ -1522,6 +1262,7 @@ if ('serviceWorker' in navigator) {
 
             harvest: (args) => {
                 const type = args[0];
+                let harvested = 0;
 
                 if (type === 'all') {
                     const readyWheat = game.wheatGrowing.filter(item => 
@@ -1554,7 +1295,7 @@ if ('serviceWorker' in navigator) {
                     if (readyWheat.length + readyApples.length + readyFlour.length === 0) {
                         print('❌ Nichts bereit zum Ernten!', 'error');
                     }
-                } else if (type === 'wheat') {
+                } else if (type === 'wheat' || type === 'apple' || type === 'flour') {
                     let amount = 999999;
                     if (args.length > 1) {
                         const parsed = parseInt(args[1]);
@@ -1565,72 +1306,48 @@ if ('serviceWorker' in navigator) {
                         amount = parsed;
                     }
                     
-                    const readyWheat = game.wheatGrowing.filter(item => 
-                        Date.now() - item.startTime >= game.growthTimes.wheat
-                    ).slice(0, amount);
-                    
-                    if (readyWheat.length === 0) {
-                        print('❌ Kein Weizen bereit zum Ernten!', 'error');
-                        return;
-                    }
-                    
-                    game.wheat += readyWheat.length;
-                    game.wheatGrowing = game.wheatGrowing.filter(item => 
-                        !readyWheat.includes(item)
-                    );
-                    print(`✓ ${readyWheat.length}x Weizen geerntet!`, 'success');
-                } else if (type === 'apple') {
-                    let amount = 999999;
-                    if (args.length > 1) {
-                        const parsed = parseInt(args[1]);
-                        if (isNaN(parsed) || parsed < 1) {
-                            print('❌ Ungültige Anzahl!', 'error');
+                    if (type === 'wheat') {
+                        const ready = game.wheatGrowing.filter(item => 
+                            Date.now() - item.startTime >= game.growthTimes.wheat
+                        ).slice(0, amount);
+                        
+                        if (ready.length === 0) {
+                            print('❌ Kein Weizen bereit!', 'error');
                             return;
                         }
-                        amount = parsed;
-                    }
-                    
-                    const readyApples = game.applesGrowing.filter(item => 
-                        Date.now() - item.startTime >= game.growthTimes.apple
-                    ).slice(0, amount);
-                    
-                    if (readyApples.length === 0) {
-                        print('❌ Keine Äpfel bereit zum Ernten!', 'error');
-                        return;
-                    }
-                    
-                    game.apples += readyApples.length;
-                    game.applesGrowing = game.applesGrowing.filter(item => 
-                        !readyApples.includes(item)
-                    );
-                    print(`✓ ${readyApples.length}x Äpfel geerntet!`, 'success');
-                } else if (type === 'flour') {
-                    let amount = 999999;
-                    if (args.length > 1) {
-                        const parsed = parseInt(args[1]);
-                        if (isNaN(parsed) || parsed < 1) {
-                            print('❌ Ungültige Anzahl!', 'error');
+                        
+                        game.wheat += ready.length;
+                        game.wheatGrowing = game.wheatGrowing.filter(item => !ready.includes(item));
+                        print(`✓ ${ready.length}x Weizen geerntet!`, 'success');
+                    } else if (type === 'apple') {
+                        const ready = game.applesGrowing.filter(item => 
+                            Date.now() - item.startTime >= game.growthTimes.apple
+                        ).slice(0, amount);
+                        
+                        if (ready.length === 0) {
+                            print('❌ Keine Äpfel bereit!', 'error');
                             return;
                         }
-                        amount = parsed;
+                        
+                        game.apples += ready.length;
+                        game.applesGrowing = game.applesGrowing.filter(item => !ready.includes(item));
+                        print(`✓ ${ready.length}x Äpfel geerntet!`, 'success');
+                    } else if (type === 'flour') {
+                        const ready = game.flourProducing.filter(item => 
+                            Date.now() - item.startTime >= game.growthTimes.flour
+                        ).slice(0, amount);
+                        
+                        if (ready.length === 0) {
+                            print('❌ Kein Mehl bereit!', 'error');
+                            return;
+                        }
+                        
+                        game.flour += ready.length;
+                        game.flourProducing = game.flourProducing.filter(item => !ready.includes(item));
+                        print(`✓ ${ready.length}x Mehl geerntet!`, 'success');
                     }
-                    
-                    const readyFlour = game.flourProducing.filter(item => 
-                        Date.now() - item.startTime >= game.growthTimes.flour
-                    ).slice(0, amount);
-                    
-                    if (readyFlour.length === 0) {
-                        print('❌ Kein Mehl bereit zum Ernten!', 'error');
-                        return;
-                    }
-                    
-                    game.flour += readyFlour.length;
-                    game.flourProducing = game.flourProducing.filter(item => 
-                        !readyFlour.includes(item)
-                    );
-                    print(`✓ ${readyFlour.length}x Mehl geerntet!`, 'success');
                 } else {
-                    print('❌ Unbekannter Typ! Nutze: wheat, apple, flour oder all', 'error');
+                    print('❌ Nutze: wheat, apple, flour oder all', 'error');
                     return;
                 }
                 saveLocal();
@@ -1649,13 +1366,13 @@ if ('serviceWorker' in navigator) {
                         return;
                     }
                     print(`✓ Verkauft: ${game.wheat} Weizen, ${game.apples} Äpfel, ${game.flour} Mehl`, 'success');
-                    print(`💰 +${total} € erhalten!`, 'success');
+                    print(`💰 +${total} €!`, 'success');
                     game.money += total;
                     game.wheat = 0;
                     game.apples = 0;
                     game.flour = 0;
-                } else if (type === 'wheat') {
-                    let amount = game.wheat;
+                } else if (type === 'wheat' || type === 'apple' || type === 'flour') {
+                    let amount = type === 'wheat' ? game.wheat : (type === 'apple' ? game.apples : game.flour);
                     if (args.length > 1) {
                         const parsed = parseInt(args[1]);
                         if (isNaN(parsed) || parsed < 1) {
@@ -1665,54 +1382,36 @@ if ('serviceWorker' in navigator) {
                         amount = parsed;
                     }
                     
-                    if (amount > game.wheat) {
-                        print(`❌ Du hast nur ${game.wheat} Weizen!`, 'error');
-                        return;
-                    }
-                    const earned = amount * game.prices.wheat;
-                    game.wheat -= amount;
-                    game.money += earned;
-                    print(`✓ ${amount}x Weizen verkauft! (+${earned} €)`, 'success');
-                } else if (type === 'apple') {
-                    let amount = game.apples;
-                    if (args.length > 1) {
-                        const parsed = parseInt(args[1]);
-                        if (isNaN(parsed) || parsed < 1) {
-                            print('❌ Ungültige Anzahl!', 'error');
+                    if (type === 'wheat') {
+                        if (amount > game.wheat) {
+                            print(`❌ Du hast nur ${game.wheat} Weizen!`, 'error');
                             return;
                         }
-                        amount = parsed;
-                    }
-                    
-                    if (amount > game.apples) {
-                        print(`❌ Du hast nur ${game.apples} Äpfel!`, 'error');
-                        return;
-                    }
-                    const earned = amount * game.prices.apple;
-                    game.apples -= amount;
-                    game.money += earned;
-                    print(`✓ ${amount}x Äpfel verkauft! (+${earned} €)`, 'success');
-                } else if (type === 'flour') {
-                    let amount = game.flour;
-                    if (args.length > 1) {
-                        const parsed = parseInt(args[1]);
-                        if (isNaN(parsed) || parsed < 1) {
-                            print('❌ Ungültige Anzahl!', 'error');
+                        const earned = amount * game.prices.wheat;
+                        game.wheat -= amount;
+                        game.money += earned;
+                        print(`✓ ${amount}x Weizen verkauft! (+${earned} €)`, 'success');
+                    } else if (type === 'apple') {
+                        if (amount > game.apples) {
+                            print(`❌ Du hast nur ${game.apples} Äpfel!`, 'error');
                             return;
                         }
-                        amount = parsed;
+                        const earned = amount * game.prices.apple;
+                        game.apples -= amount;
+                        game.money += earned;
+                        print(`✓ ${amount}x Äpfel verkauft! (+${earned} €)`, 'success');
+                    } else if (type === 'flour') {
+                        if (amount > game.flour) {
+                            print(`❌ Du hast nur ${game.flour} Mehl!`, 'error');
+                            return;
+                        }
+                        const earned = amount * game.prices.flour;
+                        game.flour -= amount;
+                        game.money += earned;
+                        print(`✓ ${amount}x Mehl verkauft! (+${earned} €)`, 'success');
                     }
-                    
-                    if (amount > game.flour) {
-                        print(`❌ Du hast nur ${game.flour} Mehl!`, 'error');
-                        return;
-                    }
-                    const earned = amount * game.prices.flour;
-                    game.flour -= amount;
-                    game.money += earned;
-                    print(`✓ ${amount}x Mehl verkauft! (+${earned} €)`, 'success');
                 } else {
-                    print('❌ Unbekannter Typ! Nutze: wheat, apple, flour oder all', 'error');
+                    print('❌ Nutze: wheat, apple, flour oder all', 'error');
                     return;
                 }
                 saveLocal();
@@ -1732,34 +1431,34 @@ if ('serviceWorker' in navigator) {
                 }
 
                 if (type === 'field') {
-                    const totalCost = game.prices.wheatField * amount;
-                    if (game.money < totalCost) {
-                        print(`❌ Nicht genug Geld! Benötigt: ${totalCost} € (hast ${game.money} €)`, 'error');
+                    const cost = game.prices.wheatField * amount;
+                    if (game.money < cost) {
+                        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
                         return;
                     }
-                    game.money -= totalCost;
+                    game.money -= cost;
                     game.wheatFields += amount;
-                    print(`✓ ${amount}x Weizenfeld gekauft! (-${totalCost} €)`, 'success');
+                    print(`✓ ${amount}x Feld gekauft! (-${cost} €)`, 'success');
                 } else if (type === 'tree') {
-                    const totalCost = game.prices.appleTree * amount;
-                    if (game.money < totalCost) {
-                        print(`❌ Nicht genug Geld! Benötigt: ${totalCost} € (hast ${game.money} €)`, 'error');
+                    const cost = game.prices.appleTree * amount;
+                    if (game.money < cost) {
+                        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
                         return;
                     }
-                    game.money -= totalCost;
+                    game.money -= cost;
                     game.appleTrees += amount;
-                    print(`✓ ${amount}x Apfelbaum gekauft! (-${totalCost} €)`, 'success');
+                    print(`✓ ${amount}x Baum gekauft! (-${cost} €)`, 'success');
                 } else if (type === 'mill') {
-                    const totalCost = game.prices.mill * amount;
-                    if (game.money < totalCost) {
-                        print(`❌ Nicht genug Geld! Benötigt: ${totalCost} € (hast ${game.money} €)`, 'error');
+                    const cost = game.prices.mill * amount;
+                    if (game.money < cost) {
+                        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
                         return;
                     }
-                    game.money -= totalCost;
+                    game.money -= cost;
                     game.mills += amount;
-                    print(`✓ ${amount}x Mühle gekauft! (-${totalCost} €)`, 'success');
+                    print(`✓ ${amount}x Mühle gekauft! (-${cost} €)`, 'success');
                 } else {
-                    print('❌ Unbekannter Typ! Nutze: field, tree oder mill', 'error');
+                    print('❌ Nutze: field, tree oder mill', 'error');
                     return;
                 }
                 saveLocal();
@@ -1771,7 +1470,6 @@ if ('serviceWorker' in navigator) {
             }
         };
 
-        // Process command
         function processCommand(cmd) {
             print(`farm@terminal:~$ ${cmd}`, 'info');
             
@@ -1790,7 +1488,18 @@ if ('serviceWorker' in navigator) {
             print('');
         }
 
-        // Input handling
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+
+        document.getElementById('loginBtn').addEventListener('click', githubLogin);
+        document.getElementById('statusBtn').addEventListener('click', openStatus);
+        document.getElementById('inventoryBtn').addEventListener('click', openInventory);
+        document.getElementById('settingsBtn').addEventListener('click', openSettings);
+        document.getElementById('closeStatusBtn').addEventListener('click', closeStatus);
+        document.getElementById('closeInventoryBtn').addEventListener('click', closeInventory);
+        document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
+
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 const cmd = input.value;
@@ -1799,73 +1508,59 @@ if ('serviceWorker' in navigator) {
             }
         });
 
-        // Keep input focused
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.modal-content') && !e.target.closest('#pwaInstallBanner')) {
+            if (!e.target.closest('.modal-content') && !e.target.closest('.blocking-screen')) {
                 input.focus();
             }
         });
 
-        // ============================================
-        // CONNECTION STATE MANAGEMENT
-        // ============================================
-
+        // Online/Offline detection
         window.addEventListener('online', async () => {
             const wasOffline = !isOnline;
             isOnline = true;
-            updateSyncStatus();
+            updateSyncBadge();
             
-            if (wasOffline) {
+            if (wasOffline && currentUser) {
                 print('✓ Verbindung wiederhergestellt', 'success');
-                
-                if (currentUser) {
-                    await performSmartSync();
-                    startCloudSync();
-                }
+                await performSmartSync('offline-to-online');
             }
         });
 
         window.addEventListener('offline', () => {
             isOnline = false;
-            updateSyncStatus();
+            updateSyncBadge();
             print('⚠️ Offline-Modus - Daten werden lokal gespeichert', 'warning');
-            stopCloudSync();
         });
 
-        // APP LIFECYCLE EVENTS
+        // App visibility change - ALWAYS ASK ON REOPEN
         document.addEventListener('visibilitychange', async () => {
-            if (document.visibilityState === 'visible') {
-                // App wurde wieder geöffnet - Smart Sync
-                if (currentUser && isOnline && Date.now() - lastSync > 60000) {
-                    await performSmartSync();
-                }
-            } else {
-                // App wird minimiert - Speichern
+            if (document.visibilityState === 'visible' && currentUser && isOnline) {
+                await performSmartSync('app-open');
+            } else if (document.visibilityState === 'hidden') {
                 saveLocal();
                 if (currentUser && isOnline) {
-                    await saveToFirestore(true);
+                    await saveToFirestore();
                 }
             }
         });
 
-        // Before unload - Save
+        // Before unload
         window.addEventListener('beforeunload', () => {
             saveLocal();
         });
 
-        // Auth state observer
-        onAuthStateChanged(auth, (user) => {
-            if (user && !currentUser) {
-                currentUser = user;
-                startCloudSync();
-            } else if (!user && currentUser) {
-                currentUser = null;
-                stopCloudSync();
-            }
-            updateSyncStatus();
+        // Resize check
+        window.addEventListener('resize', () => {
+            updateAccessControl();
         });
 
-        // Auto-save local every 10 seconds - ALWAYS
+        // Auth state observer
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            updateAccessControl();
+        });
+
+        // Auto-save local every 10 seconds
         setInterval(() => {
             saveLocal();
         }, 10000);
@@ -1879,13 +1574,7 @@ if ('serviceWorker' in navigator) {
             print('   🌾 Willkommen bei TERMINAL FARM! 🌾', 'info');
             print('═══════════════════════════════════════════════════════', 'info');
             print('');
-            
-            if (IS_PWA) {
-                print('✓ App-Modus aktiv', 'success');
-            } else {
-                print('💡 Tipp: Installiere die App für bessere Performance!', 'warning');
-            }
-            
+            print(`Hallo ${currentUser?.displayName || 'Farmer'}!`, 'success');
             print('');
             print('Baue Pflanzen an, produziere Waren und verkaufe sie!', 'info');
             print('');
@@ -1896,19 +1585,35 @@ if ('serviceWorker' in navigator) {
         // ============================================
         // INITIALIZATION
         // ============================================
-        
-        loadLocal();
-        updateDisplay();
-        printWelcome();
 
-        // Show tutorial for new players
-        if (!game.tutorialCompleted) {
-            setTimeout(startTutorial, 1000);
-        } else if (!game.loginChoiceShown && IS_PWA) {
-            // Show login choice if PWA and not shown yet
-            setTimeout(() => {
-                document.getElementById('loginChoiceModal').classList.add('active');
-            }, 2000);
+        // Check access on load
+        updateAccessControl();
+        
+        // If already logged in (from previous session)
+        if (currentUser && updateAccessControl()) {
+            loadLocal();
+            updateDisplay();
+            printWelcome();
+            
+            // Always ask on app start
+            if (isOnline) {
+                performSmartSync('app-open');
+            }
+            
+            if (!game.tutorialCompleted) {
+                setTimeout(startTutorial, 1000);
+            }
+        }
+    </script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('✓ Service Worker registered'))
+                    .catch(err => console.log('✗ Service Worker registration failed:', err));
+            });
         }
     </script>
 </body>
