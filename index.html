@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terminal Farm</title>
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Terminal Farm">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <title>Terminal Farm - Befehlszeilen Farmspiel</title>
     <style>
         * {
             margin: 0;
@@ -24,6 +30,91 @@
             font-family: 'Courier New', monospace;
             display: flex;
             flex-direction: column;
+        }
+
+        /* Screen Size Warning */
+        #screenWarning {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+            z-index: 10000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            text-align: center;
+        }
+
+        #screenWarning.active {
+            display: flex;
+        }
+
+        .warning-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .warning-text {
+            font-size: 20px;
+            color: #ffaa00;
+            margin-bottom: 10px;
+        }
+
+        .warning-subtext {
+            font-size: 14px;
+            color: #00aaff;
+            max-width: 400px;
+        }
+
+        /* PWA Install Banner */
+        #pwaInstallBanner {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #001100;
+            border: 2px solid #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 9999;
+            max-width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.3);
+        }
+
+        #pwaInstallBanner.active {
+            display: block;
+        }
+
+        .pwa-title {
+            font-size: 18px;
+            color: #00ff00;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .pwa-text {
+            font-size: 14px;
+            color: #00aaff;
+            margin-bottom: 15px;
+        }
+
+        .pwa-benefits {
+            text-align: left;
+            margin: 15px 0;
+            color: #ffaa00;
+            font-size: 13px;
+        }
+
+        .pwa-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
         }
 
         #header {
@@ -75,6 +166,16 @@
 
         .btn:active {
             transform: scale(0.95);
+        }
+
+        .btn.danger {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+
+        .btn.danger:hover {
+            background: #ff0000;
+            color: #fff;
         }
 
         #terminal {
@@ -239,10 +340,22 @@
             background: #002200;
         }
 
+        .sync-status.syncing {
+            color: #ffaa00;
+            border-color: #ffaa00;
+            background: #221100;
+            animation: pulse 1s infinite;
+        }
+
         .sync-status.local {
             color: #ffaa00;
             border-color: #ffaa00;
             background: #221100;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         .tutorial-step {
@@ -284,11 +397,81 @@
             color: #00ff00;
             margin-left: 10px;
         }
+
+        .device-info {
+            font-size: 12px;
+            color: #00aaff;
+            margin-top: 5px;
+        }
+
+        .save-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .save-card {
+            border: 2px solid #00ff00;
+            padding: 15px;
+            background: #001100;
+        }
+
+        .save-card.recommended {
+            border-color: #ffaa00;
+            box-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+        }
+
+        .save-card-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .save-stat {
+            margin: 5px 0;
+            font-size: 13px;
+        }
+
+        @media (max-width: 768px) {
+            .save-comparison {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- Screen Size Warning -->
+    <div id="screenWarning">
+        <div class="warning-icon">📱❌</div>
+        <div class="warning-text">Bildschirm zu klein</div>
+        <div class="warning-subtext">
+            Terminal Farm kann auf diesem Gerät nicht genutzt werden.<br><br>
+            Bitte verwende ein Tablet, iPad oder Computer für das beste Spielerlebnis.<br><br>
+            Mindestens 768px Breite erforderlich.
+        </div>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div id="pwaInstallBanner">
+        <div class="pwa-title">🌾 Terminal Farm installieren</div>
+        <div class="pwa-text">
+            Installiere Terminal Farm als App für das beste Erlebnis!
+        </div>
+        <div class="pwa-benefits">
+            ✓ Offline spielen<br>
+            ✓ Schneller Zugriff<br>
+            ✓ Automatische Synchronisation<br>
+            ✓ Wie eine native App
+        </div>
+        <div class="pwa-buttons">
+            <button class="btn" id="installPWABtn">Jetzt installieren</button>
+            <button class="btn" id="dismissPWABtn">Später</button>
+        </div>
+    </div>
+
     <div id="header">
-        <div class="title"> TERMINAL FARM v2.0 </div>
+        <div class="title">🌾 TERMINAL FARM v2.1 🌾</div>
         <div id="money-display">💰 0 €</div>
         <div class="header-buttons">
             <span class="sync-status local" id="syncStatus">● Lokal</span>
@@ -395,7 +578,87 @@
         const db = getFirestore(app);
         const provider = new GithubAuthProvider();
 
-        // Game State
+        // ============================================
+        // DEVICE & PWA DETECTION
+        // ============================================
+        
+        // Generate unique device ID
+        function getDeviceId() {
+            let deviceId = localStorage.getItem('termFarmDeviceId');
+            if (!deviceId) {
+                deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('termFarmDeviceId', deviceId);
+            }
+            return deviceId;
+        }
+
+        const DEVICE_ID = getDeviceId();
+
+        // Check if running as installed PWA
+        function isPWA() {
+            return window.matchMedia('(display-mode: standalone)').matches || 
+                   window.navigator.standalone === true ||
+                   document.referrer.includes('android-app://');
+        }
+
+        const IS_PWA = isPWA();
+
+        // Check screen size
+        function checkScreenSize() {
+            const minWidth = 768;
+            const minHeight = 600;
+            
+            if (window.innerWidth < minWidth || window.innerHeight < minHeight) {
+                document.getElementById('screenWarning').classList.add('active');
+                return false;
+            } else {
+                document.getElementById('screenWarning').classList.remove('active');
+                return true;
+            }
+        }
+
+        // PWA Installation
+        let deferredPrompt;
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Only show if not already installed and user hasn't dismissed it recently
+            if (!IS_PWA && !localStorage.getItem('pwaDismissed')) {
+                setTimeout(() => {
+                    document.getElementById('pwaInstallBanner').classList.add('active');
+                }, 3000);
+            }
+        });
+
+        document.getElementById('installPWABtn').addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                
+                if (outcome === 'accepted') {
+                    print('✓ App wird installiert...', 'success');
+                }
+                
+                deferredPrompt = null;
+                document.getElementById('pwaInstallBanner').classList.remove('active');
+            }
+        });
+
+        document.getElementById('dismissPWABtn').addEventListener('click', () => {
+            document.getElementById('pwaInstallBanner').classList.remove('active');
+            localStorage.setItem('pwaDismissed', Date.now().toString());
+        });
+
+        // Check on load and resize
+        checkScreenSize();
+        window.addEventListener('resize', checkScreenSize);
+
+        // ============================================
+        // GAME STATE
+        // ============================================
+        
         let game = {
             money: 50,
             wheat: 0,
@@ -409,6 +672,10 @@
             flourProducing: [],
             tutorialCompleted: false,
             loginChoiceShown: false,
+            deviceId: DEVICE_ID,
+            isPWA: IS_PWA,
+            lastUpdate: Date.now(),
+            playTime: 0,
             prices: {
                 wheat: 8,
                 apple: 15,
@@ -430,6 +697,8 @@
         let isSyncing = false;
         let syncInterval = null;
         let pendingCloudData = null;
+        let lastConnectionState = isOnline;
+        let appStartTime = Date.now();
 
         // DOM Elements
         const terminal = document.getElementById('terminal');
@@ -451,6 +720,10 @@
         document.body.style.overflow = 'hidden';
         document.documentElement.style.overflow = 'hidden';
 
+        // ============================================
+        // PROFESSIONAL SYNC SYSTEM
+        // ============================================
+
         // Print function
         function print(text, className = '') {
             const line = document.createElement('div');
@@ -468,21 +741,29 @@
 
         // Update sync status
         function updateSyncStatus() {
-            if (!isOnline) {
+            if (isSyncing) {
+                syncStatus.className = 'sync-status syncing';
+                syncStatus.textContent = '⟳ Sync...';
+            } else if (!isOnline) {
                 syncStatus.className = 'sync-status offline';
                 syncStatus.textContent = '● Offline';
             } else if (currentUser) {
                 syncStatus.className = 'sync-status online';
-                syncStatus.textContent = '● Online';
+                const lastSyncText = lastSync > 0 ? Math.floor((Date.now() - lastSync) / 1000) + 's' : '∞';
+                syncStatus.textContent = `● Online (${lastSyncText})`;
             } else {
                 syncStatus.className = 'sync-status local';
                 syncStatus.textContent = '● Lokal';
             }
         }
 
-        // Save to localStorage - PROFESSIONAL STYLE
+        // Save to localStorage - ALWAYS
         function saveLocal() {
             try {
+                game.lastUpdate = Date.now();
+                game.deviceId = DEVICE_ID;
+                game.isPWA = IS_PWA;
+                
                 const data = {
                     ...game,
                     wheatGrowing: game.wheatGrowing.map(item => ({
@@ -494,9 +775,9 @@
                     flourProducing: game.flourProducing.map(item => ({
                         elapsed: Date.now() - item.startTime
                     })),
-                    lastUpdate: Date.now(),
-                    version: '2.0'
+                    version: '2.1'
                 };
+                
                 localStorage.setItem('terminalFarmSave', JSON.stringify(data));
             } catch (error) {
                 console.error('Local save failed:', error);
@@ -519,18 +800,28 @@
                     game.flourProducing = (game.flourProducing || []).map(item => ({
                         startTime: Date.now() - (item.elapsed || 0)
                     }));
+                    
+                    // Update device info
+                    game.deviceId = DEVICE_ID;
+                    game.isPWA = IS_PWA;
                 }
             } catch (error) {
                 console.error('Local load failed:', error);
             }
         }
 
-        // Save to Firestore - PROFESSIONAL STYLE
+        // Save to Firestore - PROFESSIONAL
         async function saveToFirestore(silent = true) {
             if (!currentUser || isSyncing || !isOnline) return;
             
             try {
                 isSyncing = true;
+                updateSyncStatus();
+                
+                game.lastUpdate = Date.now();
+                game.deviceId = DEVICE_ID;
+                game.isPWA = IS_PWA;
+                
                 const data = {
                     ...game,
                     wheatGrowing: game.wheatGrowing.map(item => ({
@@ -542,8 +833,8 @@
                     flourProducing: game.flourProducing.map(item => ({
                         elapsed: Date.now() - item.startTime
                     })),
-                    lastUpdate: Date.now(),
-                    version: '2.0'
+                    syncedAt: Date.now(),
+                    version: '2.1'
                 };
                 
                 await setDoc(doc(db, "farms", currentUser.uid), data);
@@ -559,6 +850,7 @@
                 }
             } finally {
                 isSyncing = false;
+                updateSyncStatus();
             }
         }
 
@@ -580,40 +872,112 @@
             }
         }
 
+        // INTELLIGENT SYNC CONFLICT RESOLUTION
+        function compareSaves(local, cloud) {
+            const localTime = local.lastUpdate || 0;
+            const cloudTime = cloud.lastUpdate || 0;
+            const timeDiff = Math.abs(localTime - cloudTime);
+            
+            // If time difference is less than 30 seconds, auto-merge (use newer)
+            if (timeDiff < 30000) {
+                return localTime > cloudTime ? 'local' : 'cloud';
+            }
+            
+            // Calculate progress scores
+            const localScore = (local.money || 0) + 
+                              (local.wheat || 0) * 8 + 
+                              (local.apples || 0) * 15 + 
+                              (local.flour || 0) * 25 +
+                              (local.wheatFields || 0) * 100 +
+                              (local.appleTrees || 0) * 200 +
+                              (local.mills || 0) * 400;
+                              
+            const cloudScore = (cloud.money || 0) + 
+                               (cloud.wheat || 0) * 8 + 
+                               (cloud.apples || 0) * 15 + 
+                               (cloud.flour || 0) * 25 +
+                               (cloud.wheatFields || 0) * 100 +
+                               (cloud.appleTrees || 0) * 200 +
+                               (cloud.mills || 0) * 400;
+            
+            // If scores are very similar (within 10%), use newer
+            const scoreDiff = Math.abs(localScore - cloudScore);
+            const avgScore = (localScore + cloudScore) / 2;
+            
+            if (scoreDiff / avgScore < 0.1) {
+                return localTime > cloudTime ? 'local' : 'cloud';
+            }
+            
+            // If one is significantly ahead (>20% more progress), recommend it
+            if (localScore > cloudScore * 1.2) {
+                return 'local-recommended';
+            } else if (cloudScore > localScore * 1.2) {
+                return 'cloud-recommended';
+            }
+            
+            // Otherwise, ask user
+            return 'ask';
+        }
+
         // Show sync conflict modal
-        function showSyncConflict(localData, cloudData) {
+        function showSyncConflict(localData, cloudData, recommendation) {
             const modal = document.getElementById('syncConflictModal');
             const content = document.getElementById('syncConflictContent');
             
             const localDate = new Date(localData.lastUpdate || 0);
             const cloudDate = new Date(cloudData.lastUpdate || 0);
             
+            const localDevice = localData.isPWA ? '📱 App' : '🌐 Browser';
+            const cloudDevice = cloudData.isPWA ? '📱 App' : '🌐 Browser';
+            
+            const localRecommended = recommendation === 'local-recommended';
+            const cloudRecommended = recommendation === 'cloud-recommended';
+            
             content.innerHTML = `
                 <p style="margin-bottom: 20px; color: #ffaa00;">
-                    Du hast offline gespielt. Welchen Spielstand möchtest du verwenden?
+                    Du hast auf verschiedenen Geräten gespielt. Welchen Spielstand möchtest du behalten?
                 </p>
                 
-                <div class="modal-item">
-                    <strong>💾 LOKALER SPEICHERSTAND</strong><br>
-                    Letztes Speichern: ${localDate.toLocaleString('de-DE')}<br>
-                    Geld: ${localData.money} €<br>
-                    Weizen: ${localData.wheat} | Äpfel: ${localData.apples} | Mehl: ${localData.flour}
-                </div>
-                
-                <div class="modal-item">
-                    <strong>☁️ CLOUD-SPEICHERSTAND</strong><br>
-                    Letztes Speichern: ${cloudDate.toLocaleString('de-DE')}<br>
-                    Geld: ${cloudData.money} €<br>
-                    Weizen: ${cloudData.wheat} | Äpfel: ${cloudData.apples} | Mehl: ${cloudData.flour}
+                <div class="save-comparison">
+                    <div class="save-card ${localRecommended ? 'recommended' : ''}">
+                        <div class="save-card-title" style="color: ${localRecommended ? '#ffaa00' : '#00ff00'};">
+                            💾 LOKALER SPEICHERSTAND ${localRecommended ? '⭐' : ''}
+                        </div>
+                        <div class="save-stat">📅 ${localDate.toLocaleString('de-DE')}</div>
+                        <div class="save-stat">💰 ${localData.money} €</div>
+                        <div class="save-stat">🌾 ${localData.wheat} Weizen</div>
+                        <div class="save-stat">🍎 ${localData.apples} Äpfel</div>
+                        <div class="save-stat">🏺 ${localData.flour} Mehl</div>
+                        <div class="save-stat">🏗️ ${localData.wheatFields || 0} Felder</div>
+                        <div class="device-info">${localDevice} • Dieses Gerät</div>
+                        ${localRecommended ? '<div style="color: #ffaa00; margin-top: 10px; font-weight: bold;">Empfohlen: Mehr Fortschritt</div>' : ''}
+                    </div>
+                    
+                    <div class="save-card ${cloudRecommended ? 'recommended' : ''}">
+                        <div class="save-card-title" style="color: ${cloudRecommended ? '#ffaa00' : '#00ff00'};">
+                            ☁️ CLOUD-SPEICHERSTAND ${cloudRecommended ? '⭐' : ''}
+                        </div>
+                        <div class="save-stat">📅 ${cloudDate.toLocaleString('de-DE')}</div>
+                        <div class="save-stat">💰 ${cloudData.money} €</div>
+                        <div class="save-stat">🌾 ${cloudData.wheat} Weizen</div>
+                        <div class="save-stat">🍎 ${cloudData.apples} Äpfel</div>
+                        <div class="save-stat">🏺 ${cloudData.flour} Mehl</div>
+                        <div class="save-stat">🏗️ ${cloudData.wheatFields || 0} Felder</div>
+                        <div class="device-info">${cloudDevice} • Anderes Gerät</div>
+                        ${cloudRecommended ? '<div style="color: #ffaa00; margin-top: 10px; font-weight: bold;">Empfohlen: Mehr Fortschritt</div>' : ''}
+                    </div>
                 </div>
                 
                 <div class="choice-buttons">
-                    <button class="btn" id="chooseLocalBtn">💾 Lokal verwenden</button>
-                    <button class="btn" id="chooseCloudBtn">☁️ Cloud verwenden</button>
+                    <button class="btn ${localRecommended ? '' : 'danger'}" id="chooseLocalBtn">
+                        💾 Lokal verwenden
+                    </button>
+                    <button class="btn ${cloudRecommended ? '' : 'danger'}" id="chooseCloudBtn">
+                        ☁️ Cloud verwenden
+                    </button>
                 </div>
             `;
             
-            // Add event listeners
             document.getElementById('chooseLocalBtn').addEventListener('click', chooseLocalSave);
             document.getElementById('chooseCloudBtn').addEventListener('click', chooseCloudSave);
             
@@ -640,9 +1004,65 @@
                 game.flourProducing = (game.flourProducing || []).map(item => ({
                     startTime: Date.now() - (item.elapsed || 0)
                 }));
+                game.deviceId = DEVICE_ID;
+                game.isPWA = IS_PWA;
                 saveLocal();
                 updateDisplay();
                 print('✓ Cloud-Spielstand wird verwendet', 'success');
+            }
+        }
+
+        // SYNC ON APP STATE CHANGE
+        async function performSmartSync() {
+            if (!currentUser || !isOnline) return;
+            
+            print('🔄 Synchronisiere Spielstand...', 'info');
+            
+            const cloudData = await loadFromFirestore();
+            
+            if (!cloudData) {
+                // First time - upload local data
+                await saveToFirestore(false);
+                print('✓ Erstmaliger Upload abgeschlossen', 'success');
+                return;
+            }
+            
+            const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
+            const decision = compareSaves(localData, cloudData);
+            
+            switch (decision) {
+                case 'local':
+                    // Auto-use local (newer and similar progress)
+                    await saveToFirestore(true);
+                    print('✓ Lokaler Spielstand synchronisiert', 'success');
+                    break;
+                    
+                case 'cloud':
+                    // Auto-use cloud (newer and similar progress)
+                    Object.assign(game, cloudData);
+                    game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
+                        startTime: Date.now() - (item.elapsed || 0)
+                    }));
+                    game.applesGrowing = (game.applesGrowing || []).map(item => ({
+                        startTime: Date.now() - (item.elapsed || 0)
+                    }));
+                    game.flourProducing = (game.flourProducing || []).map(item => ({
+                        startTime: Date.now() - (item.elapsed || 0)
+                    }));
+                    game.deviceId = DEVICE_ID;
+                    game.isPWA = IS_PWA;
+                    saveLocal();
+                    updateDisplay();
+                    print('✓ Cloud-Spielstand synchronisiert', 'success');
+                    break;
+                    
+                case 'local-recommended':
+                case 'cloud-recommended':
+                case 'ask':
+                    // Ask user
+                    pendingCloudData = cloudData;
+                    showSyncConflict(localData, cloudData, decision);
+                    break;
             }
         }
 
@@ -651,42 +1071,9 @@
             try {
                 const result = await signInWithPopup(auth, provider);
                 currentUser = result.user;
-                print(`✓ Eingeloggt als: ${currentUser.displayName || currentUser.login || 'GitHub User'}`, 'success');
+                print(`✓ Eingeloggt als: ${currentUser.displayName || currentUser.reloadUserInfo?.screenName || 'GitHub User'}`, 'success');
                 
-                // Load cloud data
-                const cloudData = await loadFromFirestore();
-                
-                if (cloudData) {
-                    // Check if local data is newer
-                    const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
-                    const localTime = localData.lastUpdate || 0;
-                    const cloudTime = cloudData.lastUpdate || 0;
-                    
-                    if (localTime > cloudTime && Math.abs(localTime - cloudTime) > 60000) {
-                        // Show conflict modal
-                        pendingCloudData = cloudData;
-                        showSyncConflict(localData, cloudData);
-                    } else {
-                        // Use cloud data
-                        Object.assign(game, cloudData);
-                        game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
-                            startTime: Date.now() - (item.elapsed || 0)
-                        }));
-                        game.applesGrowing = (game.applesGrowing || []).map(item => ({
-                            startTime: Date.now() - (item.elapsed || 0)
-                        }));
-                        game.flourProducing = (game.flourProducing || []).map(item => ({
-                            startTime: Date.now() - (item.elapsed || 0)
-                        }));
-                        saveLocal();
-                        print('✓ Cloud-Daten geladen', 'success');
-                    }
-                } else {
-                    // First sync
-                    await saveToFirestore(false);
-                }
-                
-                // Start cloud sync interval
+                await performSmartSync();
                 startCloudSync();
                 updateDisplay();
             } catch (error) {
@@ -698,6 +1085,11 @@
         // Logout
         async function logout() {
             try {
+                // Save before logout
+                if (isOnline) {
+                    await saveToFirestore(true);
+                }
+                
                 await signOut(auth);
                 currentUser = null;
                 stopCloudSync();
@@ -709,14 +1101,16 @@
             }
         }
 
-        // Cloud sync management - PROFESSIONAL STYLE
+        // Cloud sync management
         function startCloudSync() {
             if (syncInterval) clearInterval(syncInterval);
-            syncInterval = setInterval(() => {
+            
+            // Sync every 60 seconds
+            syncInterval = setInterval(async () => {
                 if (currentUser && isOnline && Date.now() - lastSync > 60000) {
-                    saveToFirestore(true);
+                    await saveToFirestore(true);
                 }
-            }, 60000); // Check every minute
+            }, 60000);
         }
 
         function stopCloudSync() {
@@ -742,14 +1136,16 @@
             print('');
         }
 
-        // Modals
+        // ============================================
+        // MODALS
+        // ============================================
+
         function openStatus() {
             const modal = document.getElementById('statusModal');
             const content = document.getElementById('statusContent');
             
             let html = '';
             
-            // Wheat Growing
             if (game.wheatGrowing.length > 0) {
                 html += '<div class="status-item"><div class="status-item-title">🌾 WEIZEN WÄCHST:</div>';
                 game.wheatGrowing.forEach((item, i) => {
@@ -762,7 +1158,6 @@
                 html += '</div>';
             }
             
-            // Apples Growing
             if (game.applesGrowing.length > 0) {
                 html += '<div class="status-item"><div class="status-item-title">🍎 ÄPFEL WACHSEN:</div>';
                 game.applesGrowing.forEach((item, i) => {
@@ -775,7 +1170,6 @@
                 html += '</div>';
             }
             
-            // Flour Producing
             if (game.flourProducing.length > 0) {
                 html += '<div class="status-item"><div class="status-item-title">🏺 MEHL PRODUKTION:</div>';
                 game.flourProducing.forEach((item, i) => {
@@ -793,7 +1187,6 @@
                 html += '<div class="status-item-content" style="color: #ffaa00;">Nichts wächst gerade</div></div>';
             }
             
-            // Buildings
             html += '<div class="status-item"><div class="status-item-title">🏗️ GEBÄUDE:</div>';
             html += `<div class="status-item-content">🌾 Weizenfelder: ${game.wheatFields}</div>`;
             html += `<div class="status-item-content">🍎 Apfelbäume: ${game.appleTrees}</div>`;
@@ -840,37 +1233,60 @@
                     ? new Date(lastSync).toLocaleString('de-DE')
                     : 'Noch nie';
                 
+                const deviceType = IS_PWA ? '📱 Installierte App' : '🌐 Browser';
+                
                 content.innerHTML = `
                     <div class="modal-item">
                         <strong>👤 Benutzer:</strong> ${currentUser.displayName || currentUser.reloadUserInfo?.screenName || 'GitHub User'}
                     </div>
                     <div class="modal-item">
+                        <strong>📱 Gerät:</strong> ${deviceType}
+                    </div>
+                    <div class="modal-item">
+                        <strong>🆔 Geräte-ID:</strong> ${DEVICE_ID.substr(0, 20)}...
+                    </div>
+                    <div class="modal-item">
                         <strong>🔗 Status:</strong> <span style="color: #00ff00;">Mit GitHub verbunden</span>
                     </div>
                     <div class="modal-item">
-                        <strong>☁️ Cloud-Sync:</strong> <span style="color: #00ff00;">Aktiv</span>
+                        <strong>☁️ Cloud-Sync:</strong> <span style="color: #00ff00;">Aktiv (alle 60s)</span>
                     </div>
                     <div class="modal-item">
                         <strong>🕐 Letzte Sync:</strong> ${lastSyncText}
                     </div>
-                    <button class="btn" style="width: 100%; margin-top: 10px;" id="logoutBtn">Ausloggen</button>
+                    <button class="btn" style="width: 100%; margin-top: 10px;" id="forceSyncBtn">🔄 Jetzt synchronisieren</button>
+                    <button class="btn danger" style="width: 100%; margin-top: 10px;" id="logoutBtn">Ausloggen</button>
                 `;
                 
                 document.getElementById('logoutBtn').addEventListener('click', () => {
                     closeSettings();
                     logout();
                 });
+                
+                document.getElementById('forceSyncBtn').addEventListener('click', async () => {
+                    closeSettings();
+                    await performSmartSync();
+                });
             } else {
+                const deviceType = IS_PWA ? '📱 Installierte App' : '🌐 Browser';
+                
                 content.innerHTML = `
+                    <div class="modal-item">
+                        <strong>📱 Gerät:</strong> ${deviceType}
+                    </div>
+                    <div class="modal-item">
+                        <strong>🆔 Geräte-ID:</strong> ${DEVICE_ID.substr(0, 20)}...
+                    </div>
                     <div class="modal-item">
                         <strong>🔗 Status:</strong> <span style="color: #ffaa00;">Nicht verbunden</span>
                     </div>
                     <div class="modal-item">
-                        <strong>💾 Speicherung:</strong> <span style="color: #ffaa00;">Nur lokal</span>
+                        <strong>💾 Speicherung:</strong> <span style="color: #ffaa00;">Nur lokal (alle 10s)</span>
                     </div>
+                    ${!IS_PWA ? '<div class="modal-item" style="background: #221100; border-color: #ffaa00;"><strong>💡 Tipp:</strong> Installiere die App für bessere Synchronisation!</div>' : ''}
                     <div class="modal-item" style="padding: 20px; text-align: center;">
                         <p style="margin-bottom: 15px; color: #00aaff;">
-                            Verbinde dich mit GitHub, um deine Daten sicher in der Cloud zu speichern und auf mehreren Geräten zu spielen!
+                            Verbinde dich mit GitHub für Cloud-Synchronisation auf mehreren Geräten!
                         </p>
                         <button class="btn" style="width: 100%;" id="loginBtn">🔗 Mit GitHub verbinden</button>
                     </div>
@@ -941,15 +1357,17 @@
             print('✓ Tutorial abgeschlossen! Viel Erfolg! 🎉', 'success');
             print('');
             
-            // Show login choice after tutorial
-            if (!game.loginChoiceShown) {
+            if (!game.loginChoiceShown && IS_PWA) {
                 setTimeout(() => {
                     document.getElementById('loginChoiceModal').classList.add('active');
                 }, 500);
             }
         }
 
-        // Commands
+        // ============================================
+        // COMMANDS
+        // ============================================
+
         const commands = {
             help: () => {
                 print('╔══════════════════════════════════════════════════╗', 'info');
@@ -959,7 +1377,7 @@
                 print('🌱 ANBAUEN:', 'success');
                 print('  plant wheat [anzahl]  - Weizen anpflanzen (30s)');
                 print('  plant apple [anzahl]  - Äpfel anpflanzen (60s)');
-                print('  produce flour [anzahl] - Mehl herstellen (120s, kostet 2 Weizen)');
+                print('  produce flour [anzahl] - Mehl herstellen (120s, 2 Weizen)');
                 print('');
                 print('📦 ERNTEN:', 'success');
                 print('  harvest wheat [anzahl] - Weizen ernten');
@@ -980,18 +1398,19 @@
                 print('');
                 print('📊 INFO:', 'success');
                 print('  prices    - Zeige Preise');
-                print('  login     - Mit GitHub einloggen');
+                print('  sync      - Spielstand synchronisieren');
                 print('  tutorial  - Tutorial erneut anzeigen');
                 print('  clear     - Bildschirm leeren');
                 print('');
             },
 
-            login: () => {
-                if (currentUser) {
-                    print('Du bist bereits eingeloggt!', 'warning');
-                    print(`Benutzer: ${currentUser.displayName || 'GitHub User'}`, 'info');
+            sync: async () => {
+                if (currentUser && isOnline) {
+                    await performSmartSync();
+                } else if (!currentUser) {
+                    print('❌ Nicht eingeloggt. Nutze die Einstellungen zum Anmelden.', 'error');
                 } else {
-                    githubLogin();
+                    print('❌ Keine Internetverbindung', 'error');
                 }
             },
 
@@ -1373,12 +1792,15 @@
 
         // Keep input focused
         document.addEventListener('click', (e) => {
-            if (!e.target.closest('.modal-content')) {
+            if (!e.target.closest('.modal-content') && !e.target.closest('#pwaInstallBanner')) {
                 input.focus();
             }
         });
 
-        // Online/Offline detection - PROFESSIONAL STYLE
+        // ============================================
+        // CONNECTION STATE MANAGEMENT
+        // ============================================
+
         window.addEventListener('online', async () => {
             const wasOffline = !isOnline;
             isOnline = true;
@@ -1388,38 +1810,7 @@
                 print('✓ Verbindung wiederhergestellt', 'success');
                 
                 if (currentUser) {
-                    const cloudData = await loadFromFirestore();
-                    if (cloudData) {
-                        const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
-                        const localTime = localData.lastUpdate || 0;
-                        const cloudTime = cloudData.lastUpdate || 0;
-                        
-                        // Only show conflict if significant difference (more than 1 minute)
-                        if (Math.abs(localTime - cloudTime) > 60000) {
-                            if (localTime > cloudTime) {
-                                pendingCloudData = cloudData;
-                                showSyncConflict(localData, cloudData);
-                            } else {
-                                // Cloud is newer, use it
-                                Object.assign(game, cloudData);
-                                game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
-                                    startTime: Date.now() - (item.elapsed || 0)
-                                }));
-                                game.applesGrowing = (game.applesGrowing || []).map(item => ({
-                                    startTime: Date.now() - (item.elapsed || 0)
-                                }));
-                                game.flourProducing = (game.flourProducing || []).map(item => ({
-                                    startTime: Date.now() - (item.elapsed || 0)
-                                }));
-                                saveLocal();
-                                updateDisplay();
-                                print('✓ Cloud-Daten synchronisiert', 'success');
-                            }
-                        } else {
-                            // Auto-merge (use local, sync to cloud)
-                            await saveToFirestore(true);
-                        }
-                    }
+                    await performSmartSync();
                     startCloudSync();
                 }
             }
@@ -1430,6 +1821,27 @@
             updateSyncStatus();
             print('⚠️ Offline-Modus - Daten werden lokal gespeichert', 'warning');
             stopCloudSync();
+        });
+
+        // APP LIFECYCLE EVENTS
+        document.addEventListener('visibilitychange', async () => {
+            if (document.visibilityState === 'visible') {
+                // App wurde wieder geöffnet - Smart Sync
+                if (currentUser && isOnline && Date.now() - lastSync > 60000) {
+                    await performSmartSync();
+                }
+            } else {
+                // App wird minimiert - Speichern
+                saveLocal();
+                if (currentUser && isOnline) {
+                    await saveToFirestore(true);
+                }
+            }
+        });
+
+        // Before unload - Save
+        window.addEventListener('beforeunload', () => {
+            saveLocal();
         });
 
         // Auth state observer
@@ -1458,13 +1870,24 @@
             print('   🌾 Willkommen bei TERMINAL FARM! 🌾', 'info');
             print('═══════════════════════════════════════════════════════', 'info');
             print('');
+            
+            if (IS_PWA) {
+                print('✓ App-Modus aktiv', 'success');
+            } else {
+                print('💡 Tipp: Installiere die App für bessere Performance!', 'warning');
+            }
+            
+            print('');
             print('Baue Pflanzen an, produziere Waren und verkaufe sie!', 'info');
             print('');
             print('Tippe "help" für alle Befehle!', 'warning');
             print('');
         }
 
-        // Initialize
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        
         loadLocal();
         updateDisplay();
         printWelcome();
@@ -1472,6 +1895,11 @@
         // Show tutorial for new players
         if (!game.tutorialCompleted) {
             setTimeout(startTutorial, 1000);
+        } else if (!game.loginChoiceShown && IS_PWA) {
+            // Show login choice if PWA and not shown yet
+            setTimeout(() => {
+                document.getElementById('loginChoiceModal').classList.add('active');
+            }, 2000);
         }
     </script>
 </body>
