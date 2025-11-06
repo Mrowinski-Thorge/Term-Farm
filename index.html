@@ -220,6 +220,8 @@ if ('serviceWorker' in navigator) {
             min-height: 0;
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
+            touch-action: pan-y;
+            isolation: isolate;
         }
 
         #terminal::-webkit-scrollbar {
@@ -300,7 +302,7 @@ if ('serviceWorker' in navigator) {
             51%, 100% { opacity: 0.3; }
         }
 
-        /* Modal Styles */
+        /* Modal Styles - NOT SCROLLABLE */
         .modal {
             display: none;
             position: fixed;
@@ -326,21 +328,7 @@ if ('serviceWorker' in navigator) {
             max-width: 700px;
             width: 90%;
             max-height: 85vh;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain;
-        }
-
-        .modal-content::-webkit-scrollbar {
-            width: 10px;
-        }
-
-        .modal-content::-webkit-scrollbar-track {
-            background: #0a0a0a;
-        }
-
-        .modal-content::-webkit-scrollbar-thumb {
-            background: #00ff00;
+            overflow: hidden;
         }
 
         .modal-title {
@@ -588,7 +576,7 @@ if ('serviceWorker' in navigator) {
         const provider = new GithubAuthProvider();
 
         // ============================================
-        // ACCESS CONTROL - NO LOGIN REQUIRED
+        // ACCESS CONTROL - PWA & SCREEN SIZE REQUIRED
         // ============================================
 
         function isPWA() {
@@ -906,14 +894,22 @@ if ('serviceWorker' in navigator) {
                 print('Du kannst jetzt Cloud-Sicherungen erstellen!', 'info');
                 print('');
                 
-                // Frage ob Cloud-Sicherung wiederherstellen
-                const docRef = doc(db, "farms", currentUser.uid);
-                const docSnap = await getDoc(docRef);
-                
-                if (docSnap.exists()) {
-                    print('☁️ Cloud-Sicherung gefunden!', 'info');
-                    print('Tippe "restore" um sie wiederherzustellen.', 'warning');
-                    print('');
+                // Lade Cloud-Status
+                if (isOnline) {
+                    try {
+                        const docRef = doc(db, "farms", currentUser.uid);
+                        const docSnap = await getDoc(docRef);
+                        
+                        if (docSnap.exists()) {
+                            const cloudData = docSnap.data();
+                            lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
+                            print('☁️ Cloud-Sicherung gefunden!', 'info');
+                            print('Tippe "restore" um sie wiederherzustellen.', 'warning');
+                            print('');
+                        }
+                    } catch (error) {
+                        console.error('Could not load cloud status:', error);
+                    }
                 }
             } catch (error) {
                 console.error('Login failed:', error);
@@ -925,6 +921,7 @@ if ('serviceWorker' in navigator) {
             try {
                 await signOut(auth);
                 currentUser = null;
+                lastCloudBackup = 0;
                 print('✓ Ausgeloggt', 'success');
                 print('');
             } catch (error) {
@@ -1020,15 +1017,39 @@ if ('serviceWorker' in navigator) {
             document.getElementById('inventoryModal').classList.remove('active');
         }
 
-        function openSettings() {
+        async function openSettings() {
             const modal = document.getElementById('settingsModal');
             const content = document.getElementById('settingsContent');
             
-            const lastBackupText = lastCloudBackup > 0 
-                ? new Date(lastCloudBackup).toLocaleString('de-DE')
-                : 'Noch nie';
-            
             if (currentUser) {
+                let cloudStatusText = 'Wird geladen...';
+                let cloudStatusColor = '#ffaa00';
+                
+                if (!isOnline) {
+                    cloudStatusText = 'Keine Verbindung';
+                    cloudStatusColor = '#ff0000';
+                } else {
+                    try {
+                        const docRef = doc(db, "farms", currentUser.uid);
+                        const docSnap = await getDoc(docRef);
+                        
+                        if (docSnap.exists()) {
+                            const cloudData = docSnap.data();
+                            lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
+                            const backupDate = new Date(lastCloudBackup);
+                            cloudStatusText = backupDate.toLocaleString('de-DE');
+                            cloudStatusColor = '#00ff00';
+                        } else {
+                            cloudStatusText = 'Noch keine Sicherung';
+                            cloudStatusColor = '#ffaa00';
+                        }
+                    } catch (error) {
+                        console.error('Cloud status check failed:', error);
+                        cloudStatusText = 'Fehler beim Laden';
+                        cloudStatusColor = '#ff0000';
+                    }
+                }
+                
                 const username = currentUser.displayName || 
                                currentUser.reloadUserInfo?.screenName || 
                                currentUser.email?.split('@')[0] ||
@@ -1039,15 +1060,17 @@ if ('serviceWorker' in navigator) {
                         <strong>👤 Angemeldet als:</strong> ${username}
                     </div>
                     <div class="modal-item">
-                        <strong>🕐 Letzte Cloud-Sicherung:</strong> ${lastBackupText}
+                        <strong>🕐 Letzte Cloud-Sicherung:</strong><br>
+                        <span style="color: ${cloudStatusColor};">${cloudStatusText}</span>
                     </div>
                     <div class="modal-item" style="background: #001100; border-color: #00aaff;">
                         <strong>💾 Speicherung:</strong> Lokal (alle 2s automatisch)
                     </div>
                     <div class="modal-buttons">
-                        <button class="btn" id="backupBtn" style="border-color: #00aaff; color: #00aaff;">☁️ Jetzt sichern</button>
+                        <button class="btn" id="backupBtn" style="border-color: #00aaff; color: #00aaff;">☁️ Sichern</button>
                         <button class="btn" id="restoreBtn">↓ Wiederherstellen</button>
                         <button class="btn" id="logoutBtn" style="border-color: #ff0000; color: #ff0000;">Ausloggen</button>
+                        <button class="btn" id="closeSettingsBtn2">Schließen</button>
                     </div>
                 `;
                 
@@ -1065,6 +1088,8 @@ if ('serviceWorker' in navigator) {
                     closeSettings();
                     await restoreFromCloud();
                 });
+                
+                document.getElementById('closeSettingsBtn2').addEventListener('click', closeSettings);
             } else {
                 content.innerHTML = `
                     <div class="modal-item">
@@ -1086,7 +1111,7 @@ if ('serviceWorker' in navigator) {
                     </div>
                     <div class="modal-buttons">
                         <button class="btn" id="loginBtn">🔗 Mit GitHub anmelden</button>
-                        <button class="btn" id="closeSettingsBtn2">Schließen</button>
+                        <button class="btn" id="closeSettingsBtn3">Schließen</button>
                     </div>
                 `;
                 
@@ -1095,7 +1120,7 @@ if ('serviceWorker' in navigator) {
                     githubLogin();
                 });
                 
-                document.getElementById('closeSettingsBtn2').addEventListener('click', closeSettings);
+                document.getElementById('closeSettingsBtn3').addEventListener('click', closeSettings);
             }
             
             modal.classList.add('active');
@@ -1248,40 +1273,40 @@ if ('serviceWorker' in navigator) {
             },
 
             produce: (args) => {
-              const type = args[0];  
-              let amount = 1;
-             if (args.length > 1) {
-        const parsed = parseInt(args[1]);
-        if (isNaN(parsed) || parsed < 1) {
-            print('❌ Ungültige Anzahl!', 'error');
-            return;
-        }
-        amount = parsed;
-    }
+                const type = args[0];
+                let amount = 1;
+                if (args.length > 1) {
+                    const parsed = parseInt(args[1]);
+                    if (isNaN(parsed) || parsed < 1) {
+                        print('❌ Ungültige Anzahl!', 'error');
+                        return;
+                    }
+                    amount = parsed;
+                }
 
-    if (type === 'flour') {
-        const available = game.mills - game.flourProducing.length;
-        if (amount > available) {
-            print(`❌ Nur ${available} Mühlen verfügbar!`, 'error');
-            return;
-        }
-        const wheatNeeded = amount * 2;
-        if (game.wheat < wheatNeeded) {
-            print(`❌ Du brauchst ${wheatNeeded} Weizen!`, 'error');  // ← HIER WAR DER FEHLER
-            return;
-        }
-        game.wheat -= wheatNeeded;
-        for (let i = 0; i < amount; i++) {
-            game.flourProducing.push({ startTime: Date.now() });
-        }
-        print(`✓ ${amount}x Mehl wird produziert! (120s)`, 'success');
-    } else {
-        print('❌ Nutze: flour', 'error');
-        return;
-    }
-    saveLocal();
-    updateDisplay();
-},
+                if (type === 'flour') {
+                    const available = game.mills - game.flourProducing.length;
+                    if (amount > available) {
+                        print(`❌ Nur ${available} Mühlen verfügbar!`, 'error');
+                        return;
+                    }
+                    const wheatNeeded = amount * 2;
+                    if (game.wheat < wheatNeeded) {
+                        print(`❌ Du brauchst ${wheatNeeded} Weizen!`, 'error');
+                        return;
+                    }
+                    game.wheat -= wheatNeeded;
+                    for (let i = 0; i < amount; i++) {
+                        game.flourProducing.push({ startTime: Date.now() });
+                    }
+                    print(`✓ ${amount}x Mehl wird produziert! (120s)`, 'success');
+                } else {
+                    print('❌ Nutze: flour', 'error');
+                    return;
+                }
+                saveLocal();
+                updateDisplay();
+            },
 
             harvest: (args) => {
                 const type = args[0];
@@ -1497,7 +1522,8 @@ if ('serviceWorker' in navigator) {
                 saveLocal();
                 updateDisplay();
             },
-                        clear: () => {
+
+            clear: () => {
                 terminal.innerHTML = '';
             }
         };
@@ -1521,7 +1547,7 @@ if ('serviceWorker' in navigator) {
         }
 
         // ============================================
-        // EVENT LISTENERS
+        // EVENT LISTENERS - TERMINAL ONLY SCROLL
         // ============================================
 
         document.getElementById('statusBtn').addEventListener('click', openStatus);
@@ -1538,40 +1564,41 @@ if ('serviceWorker' in navigator) {
             }
         });
 
-        // STRICT SCROLL PREVENTION - ONLY TERMINAL
-        
+        // STRICT SCROLL CONTROL - NUR TERMINAL
         document.body.addEventListener('touchmove', (e) => {
-            if (!e.target.closest('#terminal') && !e.target.closest('.modal-content')) {
+            const inTerminal = e.target.closest('#terminal');
+            if (!inTerminal) {
                 e.preventDefault();
             }
         }, { passive: false });
 
-        document.addEventListener('touchmove', (e) => {
-            if (!e.target.closest('#terminal') && !e.target.closest('.modal-content')) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        // Prevent iOS rubber band
-        let lastY = 0;
+        // Terminal Scroll erlauben
         terminal.addEventListener('touchstart', (e) => {
-            lastY = e.touches[0].clientY;
+            e.stopPropagation();
         }, { passive: true });
 
         terminal.addEventListener('touchmove', (e) => {
-            const currentY = e.touches[0].clientY;
+            e.stopPropagation();
+            
+            // Verhindere Over-Scroll
             const scrollTop = terminal.scrollTop;
             const scrollHeight = terminal.scrollHeight;
             const clientHeight = terminal.clientHeight;
+            const atTop = scrollTop === 0;
+            const atBottom = scrollTop + clientHeight >= scrollHeight;
             
-            if (scrollTop === 0 && currentY > lastY) {
-                e.preventDefault();
-            } else if (scrollTop + clientHeight >= scrollHeight && currentY < lastY) {
+            const touch = e.touches[0];
+            const deltaY = touch.clientY - (terminal._lastTouchY || touch.clientY);
+            terminal._lastTouchY = touch.clientY;
+            
+            if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
                 e.preventDefault();
             }
-            
-            lastY = currentY;
         }, { passive: false });
+
+        terminal.addEventListener('touchend', () => {
+            delete terminal._lastTouchY;
+        }, { passive: true });
 
         // Prevent double-tap zoom
         let lastTouchEnd = 0;
@@ -1583,7 +1610,7 @@ if ('serviceWorker' in navigator) {
             lastTouchEnd = now;
         }, false);
 
-        // Prevent gestures
+        // Prevent pinch zoom
         document.addEventListener('gesturestart', (e) => e.preventDefault());
         document.addEventListener('gesturechange', (e) => e.preventDefault());
         document.addEventListener('gestureend', (e) => e.preventDefault());
@@ -1621,8 +1648,22 @@ if ('serviceWorker' in navigator) {
             updateAccessControl();
         });
 
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             currentUser = user;
+            
+            // Lade Cloud-Status wenn User eingeloggt
+            if (user && isOnline) {
+                try {
+                    const docRef = doc(db, "farms", user.uid);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        const cloudData = docSnap.data();
+                        lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
+                    }
+                } catch (error) {
+                    console.error('Could not load cloud backup status:', error);
+                }
+            }
         });
 
         // ============================================
@@ -1661,6 +1702,22 @@ if ('serviceWorker' in navigator) {
             updateDisplay();
             printWelcome();
             
+            // Lade Cloud-Status wenn bereits eingeloggt
+            if (currentUser && isOnline) {
+                (async () => {
+                    try {
+                        const docRef = doc(db, "farms", currentUser.uid);
+                        const docSnap = await getDoc(docRef);
+                        if (docSnap.exists()) {
+                            const cloudData = docSnap.data();
+                            lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
+                        }
+                    } catch (error) {
+                        console.error('Could not load cloud backup status:', error);
+                    }
+                })();
+            }
+            
             if (!game.tutorialCompleted) {
                 setTimeout(startTutorial, 1000);
             }
@@ -1679,3 +1736,4 @@ if ('serviceWorker' in navigator) {
     </script>
 </body>
 </html>
+                
