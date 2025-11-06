@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terminal Farm - Befehlszeilen Farmspiel</title>
+    <title>Terminal Farm</title>
     <style>
         * {
             margin: 0;
@@ -22,33 +22,47 @@
         }
 
         #header {
-            padding: 20px;
+            padding: 15px 20px;
             border-bottom: 2px solid #00ff00;
             background: #000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
-        #stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .stat-box {
-            border: 1px solid #00ff00;
-            padding: 10px;
-            background: #001100;
-        }
-
-        .stat-title {
-            color: #00aa00;
-            font-size: 12px;
-            margin-bottom: 5px;
-        }
-
-        .stat-value {
+        .title {
             font-size: 18px;
             font-weight: bold;
+            color: #00ff00;
+        }
+
+        #money-display {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ffaa00;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            background: #001100;
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #00ff00;
+            color: #000;
         }
 
         #terminal {
@@ -127,46 +141,101 @@
             51%, 100% { opacity: 0.3; }
         }
 
-        .title {
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #0a0a0a;
+            border: 2px solid #00ff00;
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-content::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .modal-content::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .modal-content::-webkit-scrollbar-thumb {
+            background: #00ff00;
+        }
+
+        .modal-title {
             font-size: 20px;
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: 20px;
             color: #00ff00;
+            text-align: center;
+        }
+
+        .modal-item {
+            padding: 10px;
+            border: 1px solid #00ff00;
+            margin-bottom: 10px;
+            background: #001100;
+        }
+
+        .close-modal {
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .sync-status {
+            font-size: 12px;
+            color: #00aaff;
+        }
+
+        .sync-status.offline {
+            color: #ff0000;
+        }
+
+        .sync-status.online {
+            color: #00ff00;
+        }
+
+        .tutorial-step {
+            background: #001100;
+            border: 2px solid #ffaa00;
+            padding: 20px;
+            margin: 10px 0;
+        }
+
+        .tutorial-step h3 {
+            color: #ffaa00;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
     <div id="header">
-        <div class="title">🌾 TERMINAL FARM v1.0 🌾</div>
-        <div id="stats">
-            <div class="stat-box">
-                <div class="stat-title">💰 GELD</div>
-                <div class="stat-value" id="money">0</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">🌾 WEIZEN</div>
-                <div class="stat-value" id="wheat">0</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">🍎 ÄPFEL</div>
-                <div class="stat-value" id="apples">0</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">🏺 MEHL</div>
-                <div class="stat-value" id="flour">0</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">🌾 WEIZENFELDER</div>
-                <div class="stat-value" id="wheatFields">3</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">🍎 APFELBÄUME</div>
-                <div class="stat-value" id="appleTrees">2</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">⚙️ MÜHLEN</div>
-                <div class="stat-value" id="mills">1</div>
-            </div>
+        <div class="title">🌾 TERMINAL FARM v2.0 🌾</div>
+        <div id="money-display">💰 0 €</div>
+        <div class="header-buttons">
+            <span class="sync-status" id="syncStatus">●</span>
+            <button class="btn" onclick="openInventory()">📦 Inventar</button>
+            <button class="btn" onclick="openSettings()">⚙️ Einstellungen</button>
         </div>
     </div>
 
@@ -177,7 +246,55 @@
         <input type="text" id="input" autocomplete="off" autofocus>
     </div>
 
-    <script>
+    <!-- Inventory Modal -->
+    <div id="inventoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">📦 INVENTAR</div>
+            <div id="inventoryContent"></div>
+            <button class="btn close-modal" onclick="closeInventory()">Schließen</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">⚙️ EINSTELLUNGEN</div>
+            <div id="settingsContent"></div>
+            <button class="btn close-modal" onclick="closeSettings()">Schließen</button>
+        </div>
+    </div>
+
+    <!-- Tutorial Modal -->
+    <div id="tutorialModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">🎓 WILLKOMMEN BEI TERMINAL FARM!</div>
+            <div id="tutorialContent"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GithubAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDPiVhUPuJXhRRjbrftX67IBi2S7B_E3ps",
+            authDomain: "term-farm.firebaseapp.com",
+            projectId: "term-farm",
+            storageBucket: "term-farm.firebasestorage.app",
+            messagingSenderId: "319818614073",
+            appId: "1:319818614073:web:5f348158b015c3378054e8",
+            measurementId: "G-19VJCT6SPG"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const provider = new GithubAuthProvider();
+
         // Game State
         const game = {
             money: 50,
@@ -190,6 +307,8 @@
             wheatGrowing: [],
             applesGrowing: [],
             flourProducing: [],
+            tutorialCompleted: false,
+            tutorialStep: 0,
             prices: {
                 wheat: 8,
                 apple: 15,
@@ -199,58 +318,31 @@
                 mill: 400
             },
             growthTimes: {
-                wheat: 30000,    // 30 Sekunden
-                apple: 60000,    // 1 Minute
-                flour: 120000    // 2 Minuten
+                wheat: 30000,
+                apple: 60000,
+                flour: 120000
             }
         };
 
-        // Load saved game
-        function loadGame() {
-            const saved = localStorage.getItem('terminalFarmSave');
-            if (saved) {
-                const data = JSON.parse(saved);
-                Object.assign(game, data);
-                // Restart growing items
-                game.wheatGrowing = game.wheatGrowing.map(item => ({
-                    ...item,
-                    startTime: Date.now() - (item.elapsed || 0)
-                }));
-                game.applesGrowing = game.applesGrowing.map(item => ({
-                    ...item,
-                    startTime: Date.now() - (item.elapsed || 0)
-                }));
-                game.flourProducing = game.flourProducing.map(item => ({
-                    ...item,
-                    startTime: Date.now() - (item.elapsed || 0)
-                }));
-            }
-        }
+        let currentUser = null;
+        let isOnline = navigator.onLine;
+        let lastSync = Date.now();
 
-        // Save game
-        function saveGame() {
-            const data = {
-                ...game,
-                wheatGrowing: game.wheatGrowing.map(item => ({
-                    ...item,
-                    elapsed: Date.now() - item.startTime
-                })),
-                applesGrowing: game.applesGrowing.map(item => ({
-                    ...item,
-                    elapsed: Date.now() - item.startTime
-                })),
-                flourProducing: game.flourProducing.map(item => ({
-                    ...item,
-                    elapsed: Date.now() - item.startTime
-                }))
-            };
-            localStorage.setItem('terminalFarmSave', JSON.stringify(data));
-        }
-
-        // Terminal output
+        // Terminal elements
         const terminal = document.getElementById('terminal');
         const input = document.getElementById('input');
+        const moneyDisplay = document.getElementById('money-display');
+        const syncStatus = document.getElementById('syncStatus');
 
+        // Window functions
+        window.openInventory = openInventory;
+        window.closeInventory = closeInventory;
+        window.openSettings = openSettings;
+        window.closeSettings = closeSettings;
+        window.githubLogin = githubLogin;
+        window.logout = logout;
+
+        // Print function
         function print(text, className = '') {
             const line = document.createElement('div');
             line.className = 'output-line ' + className;
@@ -259,32 +351,281 @@
             terminal.scrollTop = terminal.scrollHeight;
         }
 
-        function printWelcome() {
-            print('═══════════════════════════════════════════════════════', 'info');
-            print('   Willkommen bei TERMINAL FARM!', 'info');
-            print('═══════════════════════════════════════════════════════', 'info');
-            print('');
-            print('Du bist Besitzer einer kleinen Farm. Baue Pflanzen an,', 'info');
-            print('produziere Waren und verkaufe sie am Markt!', 'info');
-            print('');
-            print('Starte mit: 3 Weizenfeldern, 2 Apfelbäumen, 1 Mühle', 'success');
-            print('');
-            print('Tippe "help" für alle Befehle!', 'warning');
-            print('═══════════════════════════════════════════════════════', 'info');
-            print('');
+        // Update display
+        function updateDisplay() {
+            moneyDisplay.textContent = `💰 ${game.money} €`;
+            updateSyncStatus();
         }
 
-        // Update stats display
-        function updateStats() {
-            document.getElementById('money').textContent = game.money + ' €';
-            document.getElementById('wheat').textContent = game.wheat;
-            document.getElementById('apples').textContent = game.apples;
-            document.getElementById('flour').textContent = game.flour;
-            document.getElementById('wheatFields').textContent = game.wheatFields;
-            document.getElementById('appleTrees').textContent = game.appleTrees;
-            document.getElementById('mills').textContent = game.mills;
-            saveGame();
+        // Update sync status
+        function updateSyncStatus() {
+            if (!isOnline) {
+                syncStatus.className = 'sync-status offline';
+                syncStatus.textContent = '● Offline';
+            } else if (currentUser) {
+                syncStatus.className = 'sync-status online';
+                syncStatus.textContent = '● Online';
+            } else {
+                syncStatus.className = 'sync-status';
+                syncStatus.textContent = '● Lokal';
+            }
         }
+
+        // Save to localStorage
+        function saveLocal() {
+            const data = {
+                ...game,
+                wheatGrowing: game.wheatGrowing.map(item => ({
+                    elapsed: Date.now() - item.startTime
+                })),
+                applesGrowing: game.applesGrowing.map(item => ({
+                    elapsed: Date.now() - item.startTime
+                })),
+                flourProducing: game.flourProducing.map(item => ({
+                    elapsed: Date.now() - item.startTime
+                }))
+            };
+            localStorage.setItem('terminalFarmSave', JSON.stringify(data));
+        }
+
+        // Load from localStorage
+        function loadLocal() {
+            const saved = localStorage.getItem('terminalFarmSave');
+            if (saved) {
+                const data = JSON.parse(saved);
+                Object.assign(game, data);
+                game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
+                    startTime: Date.now() - (item.elapsed || 0)
+                }));
+                game.applesGrowing = (game.applesGrowing || []).map(item => ({
+                    startTime: Date.now() - (item.elapsed || 0)
+                }));
+                game.flourProducing = (game.flourProducing || []).map(item => ({
+                    startTime: Date.now() - (item.elapsed || 0)
+                }));
+            }
+        }
+
+        // Save to Firestore
+        async function saveToFirestore() {
+            if (!currentUser) return;
+            
+            try {
+                const data = {
+                    ...game,
+                    wheatGrowing: game.wheatGrowing.map(item => ({
+                        elapsed: Date.now() - item.startTime
+                    })),
+                    applesGrowing: game.applesGrowing.map(item => ({
+                        elapsed: Date.now() - item.startTime
+                    })),
+                    flourProducing: game.flourProducing.map(item => ({
+                        elapsed: Date.now() - item.startTime
+                    })),
+                    lastUpdate: Date.now()
+                };
+                
+                await setDoc(doc(db, "farms", currentUser.uid), data);
+                lastSync = Date.now();
+                print('✓ Cloud-Synchronisation erfolgreich', 'success');
+            } catch (error) {
+                print('❌ Cloud-Sync fehlgeschlagen: ' + error.message, 'error');
+            }
+        }
+
+        // Load from Firestore
+        async function loadFromFirestore() {
+            if (!currentUser) return;
+            
+            try {
+                const docRef = doc(db, "farms", currentUser.uid);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    Object.assign(game, data);
+                    game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
+                        startTime: Date.now() - (item.elapsed || 0)
+                    }));
+                    game.applesGrowing = (game.applesGrowing || []).map(item => ({
+                        startTime: Date.now() - (item.elapsed || 0)
+                    }));
+                    game.flourProducing = (game.flourProducing || []).map(item => ({
+                        startTime: Date.now() - (item.elapsed || 0)
+                    }));
+                    print('✓ Cloud-Daten geladen', 'success');
+                } else {
+                    // Erste Synchronisation
+                    await saveToFirestore();
+                }
+            } catch (error) {
+                print('❌ Cloud-Load fehlgeschlagen: ' + error.message, 'error');
+            }
+        }
+
+        // GitHub Login
+        async function githubLogin() {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                currentUser = result.user;
+                print(`✓ Eingeloggt als: ${currentUser.displayName || currentUser.email}`, 'success');
+                print('Synchronisiere mit Cloud...', 'info');
+                await loadFromFirestore();
+                updateDisplay();
+            } catch (error) {
+                print('❌ Login fehlgeschlagen: ' + error.message, 'error');
+            }
+        }
+
+        // Logout
+        async function logout() {
+            try {
+                await signOut(auth);
+                currentUser = null;
+                print('✓ Ausgeloggt', 'success');
+                updateDisplay();
+            } catch (error) {
+                print('❌ Logout fehlgeschlagen: ' + error.message, 'error');
+            }
+        }
+
+        // Modals
+        function openInventory() {
+            const modal = document.getElementById('inventoryModal');
+            const content = document.getElementById('inventoryContent');
+            
+            content.innerHTML = `
+                <div class="modal-item">
+                    <strong>🌾 Weizen:</strong> ${game.wheat}
+                </div>
+                <div class="modal-item">
+                    <strong>🍎 Äpfel:</strong> ${game.apples}
+                </div>
+                <div class="modal-item">
+                    <strong>🏺 Mehl:</strong> ${game.flour}
+                </div>
+                <div class="modal-item">
+                    <strong>🌾 Weizenfelder:</strong> ${game.wheatFields}
+                </div>
+                <div class="modal-item">
+                    <strong>🍎 Apfelbäume:</strong> ${game.appleTrees}
+                </div>
+                <div class="modal-item">
+                    <strong>⚙️ Mühlen:</strong> ${game.mills}
+                </div>
+                <div class="modal-item">
+                    <strong>🌱 Weizen wächst:</strong> ${game.wheatGrowing.length}/${game.wheatFields}
+                </div>
+                <div class="modal-item">
+                    <strong>🌱 Äpfel wachsen:</strong> ${game.applesGrowing.length}/${game.appleTrees}
+                </div>
+                <div class="modal-item">
+                    <strong>⚙️ Mehl produziert:</strong> ${game.flourProducing.length}/${game.mills}
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        function closeInventory() {
+            document.getElementById('inventoryModal').classList.remove('active');
+        }
+
+        function openSettings() {
+            const modal = document.getElementById('settingsModal');
+            const content = document.getElementById('settingsContent');
+            
+            if (currentUser) {
+                content.innerHTML = `
+                    <div class="modal-item">
+                        <strong>👤 Benutzer:</strong> ${currentUser.displayName || currentUser.email}
+                    </div>
+                    <div class="modal-item">
+                        <strong>📧 Email:</strong> ${currentUser.email || 'Nicht verfügbar'}
+                    </div>
+                    <div class="modal-item">
+                        <strong>🔗 Status:</strong> <span style="color: #00ff00;">Mit GitHub verbunden</span>
+                    </div>
+                    <div class="modal-item">
+                        <strong>☁️ Cloud-Sync:</strong> <span style="color: #00ff00;">Aktiv</span>
+                    </div>
+                    <button class="btn" style="width: 100%; margin-top: 10px;" onclick="logout()">Ausloggen</button>
+                `;
+            } else {
+                content.innerHTML = `
+                    <div class="modal-item">
+                        <strong>🔗 Status:</strong> <span style="color: #ffaa00;">Nicht verbunden</span>
+                    </div>
+                    <div class="modal-item">
+                        <strong>💾 Speicherung:</strong> <span style="color: #ffaa00;">Nur lokal</span>
+                    </div>
+                    <div class="modal-item" style="padding: 20px; text-align: center;">
+                        <p style="margin-bottom: 15px; color: #00aaff;">
+                            Verbinde dich mit GitHub, um deine Daten sicher in der Cloud zu speichern!
+                        </p>
+                        <button class="btn" style="width: 100%;" onclick="githubLogin()">🔗 Mit GitHub verbinden</button>
+                    </div>
+                `;
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        // Tutorial
+        function startTutorial() {
+            const modal = document.getElementById('tutorialModal');
+            const content = document.getElementById('tutorialContent');
+            
+            content.innerHTML = `
+                <div class="tutorial-step">
+                    <h3>Schritt 1: Felder bepflanzen 🌾</h3>
+                    <p>Tippe: <strong style="color: #ffaa00;">plant wheat 3</strong></p>
+                    <p>Dies pflanzt Weizen auf 3 deiner Felder. Weizen wächst 30 Sekunden.</p>
+                </div>
+                
+                <div class="tutorial-step">
+                    <h3>Schritt 2: Ernten 📦</h3>
+                    <p>Warte 30 Sekunden und tippe: <strong style="color: #ffaa00;">harvest all</strong></p>
+                    <p>Dies erntet alle fertigen Pflanzen.</p>
+                </div>
+                
+                <div class="tutorial-step">
+                    <h3>Schritt 3: Verkaufen 💰</h3>
+                    <p>Tippe: <strong style="color: #ffaa00;">sell all</strong></p>
+                    <p>Dies verkauft alles in deinem Inventar und bringt dir Geld!</p>
+                </div>
+                
+                <div class="tutorial-step">
+                    <h3>Schritt 4: Erweitern 🏗️</h3>
+                    <p>Tippe: <strong style="color: #ffaa00;">buy field</strong></p>
+                    <p>Kaufe mehr Felder, Bäume und Mühlen um zu wachsen!</p>
+                </div>
+                
+                <div class="tutorial-step">
+                    <h3>Weitere Befehle 📋</h3>
+                    <p>Tippe: <strong style="color: #ffaa00;">help</strong></p>
+                    <p>Für eine vollständige Liste aller Befehle.</p>
+                </div>
+                
+                <button class="btn close-modal" onclick="closeTutorial()" style="width: 100%;">
+                    Los geht's! 🚀
+                </button>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        window.closeTutorial = function() {
+            document.getElementById('tutorialModal').classList.remove('active');
+            game.tutorialCompleted = true;
+            saveLocal();
+            print('✓ Tutorial abgeschlossen! Viel Erfolg! 🎉', 'success');
+            print('');
+        };
 
         // Commands
         const commands = {
@@ -311,16 +652,34 @@
                 print('  sell all              - Alles verkaufen');
                 print('');
                 print('🏗️ KAUFEN:', 'success');
-                print('  buy field             - Weizenfeld kaufen (100€)');
-                print('  buy tree              - Apfelbaum kaufen (200€)');
-                print('  buy mill              - Mühle kaufen (400€)');
+                print('  buy field [anzahl]    - Weizenfeld kaufen (100€)');
+                print('  buy tree [anzahl]     - Apfelbaum kaufen (200€)');
+                print('  buy mill [anzahl]     - Mühle kaufen (400€)');
                 print('');
                 print('📊 INFO:', 'success');
                 print('  status    - Zeige Farm-Status');
                 print('  prices    - Zeige Preise');
                 print('  growing   - Zeige wachsende Pflanzen');
+                print('  login     - Mit GitHub einloggen');
+                print('  tutorial  - Tutorial erneut anzeigen');
                 print('  clear     - Bildschirm leeren');
                 print('');
+            },
+
+            login: () => {
+                if (currentUser) {
+                    print('Du bist bereits eingeloggt!', 'warning');
+                    print(`Benutzer: ${currentUser.displayName || currentUser.email}`, 'info');
+                } else {
+                    print('Möchtest du dich mit GitHub verbinden?', 'info');
+                    print('Deine Daten werden dann sicher in der Cloud gespeichert.', 'info');
+                    print('');
+                    print('Öffne die Einstellungen (⚙️ Button oben rechts) zum Einloggen!', 'warning');
+                }
+            },
+
+            tutorial: () => {
+                startTutorial();
             },
 
             status: () => {
@@ -418,7 +777,15 @@
 
             plant: (args) => {
                 const type = args[0];
-                const amount = parseInt(args[1]) || 1;
+                let amount = 1;
+                if (args.length > 1) {
+                    const parsed = parseInt(args[1]);
+                    if (isNaN(parsed) || parsed < 1) {
+                        print('❌ Ungültige Anzahl!', 'error');
+                        return;
+                    }
+                    amount = parsed;
+                }
 
                 if (type === 'wheat') {
                     const available = game.wheatFields - game.wheatGrowing.length;
@@ -444,12 +811,21 @@
                     print('❌ Unbekannter Typ! Nutze: wheat oder apple', 'error');
                     return;
                 }
-                updateStats();
+                saveLocal();
+                updateDisplay();
             },
 
             produce: (args) => {
                 const type = args[0];
-                const amount = parseInt(args[1]) || 1;
+                let amount = 1;
+                if (args.length > 1) {
+                    const parsed = parseInt(args[1]);
+                    if (isNaN(parsed) || parsed < 1) {
+                        print('❌ Ungültige Anzahl!', 'error');
+                        return;
+                    }
+                    amount = parsed;
+                }
 
                 if (type === 'flour') {
                     const available = game.mills - game.flourProducing.length;
@@ -471,15 +847,14 @@
                     print('❌ Unbekannter Typ! Nutze: flour', 'error');
                     return;
                 }
-                updateStats();
+                saveLocal();
+                updateDisplay();
             },
 
             harvest: (args) => {
                 const type = args[0];
-                let harvested = 0;
 
                 if (type === 'all') {
-                    // Harvest wheat
                     const readyWheat = game.wheatGrowing.filter(item => 
                         Date.now() - item.startTime >= game.growthTimes.wheat
                     );
@@ -489,7 +864,6 @@
                     );
                     if (readyWheat.length > 0) print(`✓ ${readyWheat.length}x Weizen geerntet!`, 'success');
 
-                    // Harvest apples
                     const readyApples = game.applesGrowing.filter(item => 
                         Date.now() - item.startTime >= game.growthTimes.apple
                     );
@@ -499,7 +873,6 @@
                     );
                     if (readyApples.length > 0) print(`✓ ${readyApples.length}x Äpfel geerntet!`, 'success');
 
-                    // Harvest flour
                     const readyFlour = game.flourProducing.filter(item => 
                         Date.now() - item.startTime >= game.growthTimes.flour
                     );
@@ -513,7 +886,16 @@
                         print('❌ Nichts bereit zum Ernten!', 'error');
                     }
                 } else if (type === 'wheat') {
-                    const amount = parseInt(args[1]) || 999;
+                    let amount = 999999;
+                    if (args.length > 1) {
+                        const parsed = parseInt(args[1]);
+                        if (isNaN(parsed) || parsed < 1) {
+                            print('❌ Ungültige Anzahl!', 'error');
+                            return;
+                        }
+                        amount = parsed;
+                    }
+                    
                     const readyWheat = game.wheatGrowing.filter(item => 
                         Date.now() - item.startTime >= game.growthTimes.wheat
                     ).slice(0, amount);
@@ -529,7 +911,16 @@
                     );
                     print(`✓ ${readyWheat.length}x Weizen geerntet!`, 'success');
                 } else if (type === 'apple') {
-                    const amount = parseInt(args[1]) || 999;
+                    let amount = 999999;
+                    if (args.length > 1) {
+                        const parsed = parseInt(args[1]);
+                        if (isNaN(parsed) || parsed < 1) {
+                            print('❌ Ungültige Anzahl!', 'error');
+                            return;
+                        }
+                        amount = parsed;
+                    }
+                    
                     const readyApples = game.applesGrowing.filter(item => 
                         Date.now() - item.startTime >= game.growthTimes.apple
                     ).slice(0, amount);
@@ -545,7 +936,16 @@
                     );
                     print(`✓ ${readyApples.length}x Äpfel geerntet!`, 'success');
                 } else if (type === 'flour') {
-                    const amount = parseInt(args[1]) || 999;
+                    let amount = 999999;
+                    if (args.length > 1) {
+                        const parsed = parseInt(args[1]);
+                        if (isNaN(parsed) || parsed < 1) {
+                            print('❌ Ungültige Anzahl!', 'error');
+                            return;
+                        }
+                        amount = parsed;
+                    }
+                    
                     const readyFlour = game.flourProducing.filter(item => 
                         Date.now() - item.startTime >= game.growthTimes.flour
                     ).slice(0, amount);
@@ -564,7 +964,8 @@
                     print('❌ Unbekannter Typ! Nutze: wheat, apple, flour oder all', 'error');
                     return;
                 }
-                updateStats();
+                saveLocal();
+                updateDisplay();
             },
 
             sell: (args) => {
@@ -585,7 +986,16 @@
                     game.apples = 0;
                     game.flour = 0;
                 } else if (type === 'wheat') {
-                    const amount = parseInt(args[1]) || game.wheat;
+                    let amount = game.wheat;
+                    if (args.length > 1) {
+                        const parsed = parseInt(args[1]);
+                        if (isNaN(parsed) || parsed < 1) {
+                            print('❌ Ungültige Anzahl!', 'error');
+                            return;
+                        }
+                        amount = parsed;
+                    }
+                    
                     if (amount > game.wheat) {
                         print(`❌ Du hast nur ${game.wheat} Weizen!`, 'error');
                         return;
@@ -595,7 +1005,16 @@
                     game.money += earned;
                     print(`✓ ${amount}x Weizen verkauft! (+${earned} €)`, 'success');
                 } else if (type === 'apple') {
-                    const amount = parseInt(args[1]) || game.apples;
+                    let amount = game.apples;
+                    if (args.length > 1) {
+                        const parsed = parseInt(args[1]);
+                        if (isNaN(parsed) || parsed < 1) {
+                            print('❌ Ungültige Anzahl!', 'error');
+                            return;
+                        }
+                        amount = parsed;
+                    }
+                    
                     if (amount > game.apples) {
                         print(`❌ Du hast nur ${game.apples} Äpfel!`, 'error');
                         return;
@@ -605,7 +1024,16 @@
                     game.money += earned;
                     print(`✓ ${amount}x Äpfel verkauft! (+${earned} €)`, 'success');
                 } else if (type === 'flour') {
-                    const amount = parseInt(args[1]) || game.flour;
+                    let amount = game.flour;
+                    if (args.length > 1) {
+                        const parsed = parseInt(args[1]);
+                        if (isNaN(parsed) || parsed < 1) {
+                            print('❌ Ungültige Anzahl!', 'error');
+                            return;
+                        }
+                        amount = parsed;
+                    }
+                    
                     if (amount > game.flour) {
                         print(`❌ Du hast nur ${game.flour} Mehl!`, 'error');
                         return;
@@ -618,41 +1046,55 @@
                     print('❌ Unbekannter Typ! Nutze: wheat, apple, flour oder all', 'error');
                     return;
                 }
-                updateStats();
+                saveLocal();
+                updateDisplay();
             },
 
             buy: (args) => {
                 const type = args[0];
+                let amount = 1;
+                if (args.length > 1) {
+                    const parsed = parseInt(args[1]);
+                    if (isNaN(parsed) || parsed < 1) {
+                        print('❌ Ungültige Anzahl!', 'error');
+                        return;
+                    }
+                    amount = parsed;
+                }
 
                 if (type === 'field') {
-                    if (game.money < game.prices.wheatField) {
-                        print(`❌ Nicht genug Geld! Benötigt: ${game.prices.wheatField} €`, 'error');
+                    const totalCost = game.prices.wheatField * amount;
+                    if (game.money < totalCost) {
+                        print(`❌ Nicht genug Geld! Benötigt: ${totalCost} € (hast ${game.money} €)`, 'error');
                         return;
                     }
-                    game.money -= game.prices.wheatField;
-                    game.wheatFields++;
-                    print(`✓ Weizenfeld gekauft! (-${game.prices.wheatField} €)`, 'success');
+                    game.money -= totalCost;
+                    game.wheatFields += amount;
+                    print(`✓ ${amount}x Weizenfeld gekauft! (-${totalCost} €)`, 'success');
                 } else if (type === 'tree') {
-                    if (game.money < game.prices.appleTree) {
-                        print(`❌ Nicht genug Geld! Benötigt: ${game.prices.appleTree} €`, 'error');
+                    const totalCost = game.prices.appleTree * amount;
+                    if (game.money < totalCost) {
+                        print(`❌ Nicht genug Geld! Benötigt: ${totalCost} € (hast ${game.money} €)`, 'error');
                         return;
                     }
-                    game.money -= game.prices.appleTree;
-                    game.appleTrees++;
-                    print(`✓ Apfelbaum gekauft! (-${game.prices.appleTree} €)`, 'success');
+                    game.money -= totalCost;
+                    game.appleTrees += amount;
+                    print(`✓ ${amount}x Apfelbaum gekauft! (-${totalCost} €)`, 'success');
                 } else if (type === 'mill') {
-                    if (game.money < game.prices.mill) {
-                        print(`❌ Nicht genug Geld! Benötigt: ${game.prices.mill} €`, 'error');
+                    const totalCost = game.prices.mill * amount;
+                    if (game.money < totalCost) {
+                        print(`❌ Nicht genug Geld! Benötigt: ${totalCost} € (hast ${game.money} €)`, 'error');
                         return;
                     }
-                    game.money -= game.prices.mill;
-                    game.mills++;
-                    print(`✓ Mühle gekauft! (-${game.prices.mill} €)`, 'success');
+                    game.money -= totalCost;
+                    game.mills += amount;
+                    print(`✓ ${amount}x Mühle gekauft! (-${totalCost} €)`, 'success');
                 } else {
                     print('❌ Unbekannter Typ! Nutze: field, tree oder mill', 'error');
                     return;
                 }
-                updateStats();
+                saveLocal();
+                updateDisplay();
             },
 
             clear: () => {
@@ -693,16 +1135,65 @@
             input.focus();
         });
 
-        // Auto-save every 10 seconds
-        setInterval(saveGame, 10000);
+        // Online/Offline detection
+        window.addEventListener('online', () => {
+            isOnline = true;
+            updateSyncStatus();
+            print('✓ Verbindung wiederhergestellt', 'success');
+            if (currentUser) {
+                loadFromFirestore();
+            }
+        });
 
-        // Update stats every second
-        setInterval(updateStats, 1000);
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            updateSyncStatus();
+            print('⚠️ Offline-Modus', 'warning');
+        });
+
+        // Auth state observer
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                updateSyncStatus();
+            } else {
+                currentUser = null;
+                updateSyncStatus();
+            }
+        });
+
+        // Auto-save (local every 10s, cloud every 60s if online)
+        setInterval(() => {
+            saveLocal();
+            if (currentUser && isOnline && Date.now() - lastSync > 60000) {
+                saveToFirestore();
+            }
+        }, 10000);
+
+        // Update display every second
+        setInterval(updateDisplay, 1000);
+
+        // Welcome message
+        function printWelcome() {
+            print('═══════════════════════════════════════════════════════', 'info');
+            print('   🌾 Willkommen bei TERMINAL FARM! 🌾', 'info');
+            print('═══════════════════════════════════════════════════════', 'info');
+            print('');
+            print('Baue Pflanzen an, produziere Waren und verkaufe sie!', 'info');
+            print('');
+            print('Tippe "help" für alle Befehle oder "tutorial" für Hilfe!', 'warning');
+            print('');
+        }
 
         // Initialize
-        loadGame();
-        updateStats();
+        loadLocal();
+        updateDisplay();
         printWelcome();
+
+        // Show tutorial for new players
+        if (!game.tutorialCompleted) {
+            setTimeout(startTutorial, 1000);
+        }
     </script>
 </body>
 </html>
