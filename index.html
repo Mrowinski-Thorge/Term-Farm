@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terminal Farm</title>
+    <title>Terminal Farm - Befehlszeilen Farmspiel</title>
     <style>
         * {
             margin: 0;
@@ -11,12 +11,17 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
+
         body {
             background: #0a0a0a;
             color: #00ff00;
             font-family: 'Courier New', monospace;
-            height: 100vh;
-            overflow: hidden;
             display: flex;
             flex-direction: column;
         }
@@ -30,6 +35,7 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 10px;
+            flex-shrink: 0;
         }
 
         .title {
@@ -47,6 +53,7 @@
         .header-buttons {
             display: flex;
             gap: 10px;
+            align-items: center;
         }
 
         .btn {
@@ -58,6 +65,7 @@
             font-family: 'Courier New', monospace;
             font-size: 14px;
             transition: all 0.3s;
+            white-space: nowrap;
         }
 
         .btn:hover {
@@ -68,9 +76,11 @@
         #terminal {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 20px;
             font-size: 14px;
             line-height: 1.6;
+            min-height: 0;
         }
 
         #terminal::-webkit-scrollbar {
@@ -87,6 +97,7 @@
 
         .output-line {
             margin: 5px 0;
+            word-wrap: break-word;
         }
 
         .success {
@@ -110,11 +121,13 @@
             padding: 15px 20px;
             border-top: 2px solid #00ff00;
             background: #000;
+            flex-shrink: 0;
         }
 
         #prompt {
             color: #00ff00;
             margin-right: 10px;
+            flex-shrink: 0;
         }
 
         #input {
@@ -125,6 +138,7 @@
             font-family: 'Courier New', monospace;
             font-size: 14px;
             outline: none;
+            min-width: 0;
         }
 
         .growing {
@@ -151,7 +165,7 @@
             height: 100%;
             background: rgba(0, 0, 0, 0.9);
             z-index: 1000;
-            overflow-y: auto;
+            overflow: hidden;
         }
 
         .modal.active {
@@ -204,15 +218,27 @@
 
         .sync-status {
             font-size: 12px;
-            color: #00aaff;
+            padding: 5px 10px;
+            border: 1px solid;
+            border-radius: 3px;
         }
 
         .sync-status.offline {
             color: #ff0000;
+            border-color: #ff0000;
+            background: #220000;
         }
 
         .sync-status.online {
             color: #00ff00;
+            border-color: #00ff00;
+            background: #002200;
+        }
+
+        .sync-status.local {
+            color: #ffaa00;
+            border-color: #ffaa00;
+            background: #221100;
         }
 
         .tutorial-step {
@@ -226,6 +252,34 @@
             color: #ffaa00;
             margin-bottom: 10px;
         }
+
+        .choice-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .choice-buttons .btn {
+            flex: 1;
+        }
+
+        .status-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #00ff00;
+            background: #001100;
+        }
+
+        .status-item-title {
+            color: #ffaa00;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .status-item-content {
+            color: #00ff00;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -233,7 +287,8 @@
         <div class="title">🌾 TERMINAL FARM v2.0 🌾</div>
         <div id="money-display">💰 0 €</div>
         <div class="header-buttons">
-            <span class="sync-status" id="syncStatus">●</span>
+            <span class="sync-status local" id="syncStatus">● Lokal</span>
+            <button class="btn" onclick="openStatus()">📊 Status</button>
             <button class="btn" onclick="openInventory()">📦 Inventar</button>
             <button class="btn" onclick="openSettings()">⚙️ Einstellungen</button>
         </div>
@@ -244,6 +299,15 @@
     <div id="input-line">
         <span id="prompt">farm@terminal:~$</span>
         <input type="text" id="input" autocomplete="off" autofocus>
+    </div>
+
+    <!-- Status Modal -->
+    <div id="statusModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">📊 FARM STATUS</div>
+            <div id="statusContent"></div>
+            <button class="btn close-modal" onclick="closeStatus()">Schließen</button>
+        </div>
     </div>
 
     <!-- Inventory Modal -->
@@ -272,11 +336,43 @@
         </div>
     </div>
 
+    <!-- Login Choice Modal -->
+    <div id="loginChoiceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">☁️ CLOUD-SPEICHERUNG</div>
+            <div id="loginChoiceContent">
+                <p style="margin-bottom: 20px; color: #00aaff;">
+                    Möchtest du dich mit GitHub verbinden, um deine Daten in der Cloud zu speichern?
+                </p>
+                <p style="margin-bottom: 20px; color: #ffaa00;">
+                    Vorteile:
+                </p>
+                <ul style="margin-left: 20px; margin-bottom: 20px; color: #00ff00;">
+                    <li>✓ Daten auf mehreren Geräten synchronisieren</li>
+                    <li>✓ Sicheres Cloud-Backup</li>
+                    <li>✓ Offline-Spielstand wird geschützt</li>
+                </ul>
+                <div class="choice-buttons">
+                    <button class="btn" onclick="acceptLogin()">Mit GitHub verbinden</button>
+                    <button class="btn" onclick="declineLogin()">Später</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Conflict Modal -->
+    <div id="syncConflictModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">⚠️ SPEICHERSTAND WÄHLEN</div>
+            <div id="syncConflictContent"></div>
+        </div>
+    </div>
+
     <script type="module">
         // Firebase imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithPopup, GithubAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         // Firebase configuration
         const firebaseConfig = {
@@ -308,7 +404,7 @@
             applesGrowing: [],
             flourProducing: [],
             tutorialCompleted: false,
-            tutorialStep: 0,
+            loginChoiceShown: false,
             prices: {
                 wheat: 8,
                 apple: 15,
@@ -326,7 +422,8 @@
 
         let currentUser = null;
         let isOnline = navigator.onLine;
-        let lastSync = Date.now();
+        let lastSync = 0;
+        let isSyncing = false;
 
         // Terminal elements
         const terminal = document.getElementById('terminal');
@@ -335,12 +432,22 @@
         const syncStatus = document.getElementById('syncStatus');
 
         // Window functions
+        window.openStatus = openStatus;
+        window.closeStatus = closeStatus;
         window.openInventory = openInventory;
         window.closeInventory = closeInventory;
         window.openSettings = openSettings;
         window.closeSettings = closeSettings;
         window.githubLogin = githubLogin;
         window.logout = logout;
+        window.acceptLogin = acceptLogin;
+        window.declineLogin = declineLogin;
+        window.chooseLocalSave = chooseLocalSave;
+        window.chooseCloudSave = chooseCloudSave;
+
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
 
         // Print function
         function print(text, className = '') {
@@ -366,7 +473,7 @@
                 syncStatus.className = 'sync-status online';
                 syncStatus.textContent = '● Online';
             } else {
-                syncStatus.className = 'sync-status';
+                syncStatus.className = 'sync-status local';
                 syncStatus.textContent = '● Lokal';
             }
         }
@@ -383,7 +490,8 @@
                 })),
                 flourProducing: game.flourProducing.map(item => ({
                     elapsed: Date.now() - item.startTime
-                }))
+                })),
+                lastUpdate: Date.now()
             };
             localStorage.setItem('terminalFarmSave', JSON.stringify(data));
         }
@@ -407,10 +515,11 @@
         }
 
         // Save to Firestore
-        async function saveToFirestore() {
-            if (!currentUser) return;
+        async function saveToFirestore(silent = true) {
+            if (!currentUser || isSyncing) return;
             
             try {
+                isSyncing = true;
                 const data = {
                     ...game,
                     wheatGrowing: game.wheatGrowing.map(item => ({
@@ -427,9 +536,16 @@
                 
                 await setDoc(doc(db, "farms", currentUser.uid), data);
                 lastSync = Date.now();
-                print('✓ Cloud-Synchronisation erfolgreich', 'success');
+                
+                if (!silent) {
+                    print('✓ Cloud-Synchronisation erfolgreich', 'success');
+                }
             } catch (error) {
-                print('❌ Cloud-Sync fehlgeschlagen: ' + error.message, 'error');
+                if (!silent) {
+                    print('❌ Cloud-Sync fehlgeschlagen: ' + error.message, 'error');
+                }
+            } finally {
+                isSyncing = false;
             }
         }
 
@@ -442,35 +558,119 @@
                 const docSnap = await getDoc(docRef);
                 
                 if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    Object.assign(game, data);
-                    game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
-                        startTime: Date.now() - (item.elapsed || 0)
-                    }));
-                    game.applesGrowing = (game.applesGrowing || []).map(item => ({
-                        startTime: Date.now() - (item.elapsed || 0)
-                    }));
-                    game.flourProducing = (game.flourProducing || []).map(item => ({
-                        startTime: Date.now() - (item.elapsed || 0)
-                    }));
-                    print('✓ Cloud-Daten geladen', 'success');
-                } else {
-                    // Erste Synchronisation
-                    await saveToFirestore();
+                    return docSnap.data();
                 }
+                return null;
             } catch (error) {
                 print('❌ Cloud-Load fehlgeschlagen: ' + error.message, 'error');
+                return null;
             }
         }
+
+        // Show sync conflict modal
+        function showSyncConflict(localData, cloudData) {
+            const modal = document.getElementById('syncConflictModal');
+            const content = document.getElementById('syncConflictContent');
+            
+            const localDate = new Date(localData.lastUpdate || 0);
+            const cloudDate = new Date(cloudData.lastUpdate || 0);
+            
+            content.innerHTML = `
+                <p style="margin-bottom: 20px; color: #ffaa00;">
+                    Du hast offline gespielt. Welchen Spielstand möchtest du verwenden?
+                </p>
+                
+                <div class="modal-item">
+                    <strong>💾 LOKALER SPEICHERSTAND</strong><br>
+                    Letztes Speichern: ${localDate.toLocaleString('de-DE')}<br>
+                    Geld: ${localData.money} €<br>
+                    Weizen: ${localData.wheat} | Äpfel: ${localData.apples} | Mehl: ${localData.flour}
+                </div>
+                
+                <div class="modal-item">
+                    <strong>☁️ CLOUD-SPEICHERSTAND</strong><br>
+                    Letztes Speichern: ${cloudDate.toLocaleString('de-DE')}<br>
+                    Geld: ${cloudData.money} €<br>
+                    Weizen: ${cloudData.wheat} | Äpfel: ${cloudData.apples} | Mehl: ${cloudData.flour}
+                </div>
+                
+                <div class="choice-buttons">
+                    <button class="btn" onclick="chooseLocalSave()">💾 Lokal verwenden</button>
+                    <button class="btn" onclick="chooseCloudSave()">☁️ Cloud verwenden</button>
+                </div>
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        let pendingCloudData = null;
+
+        window.chooseLocalSave = async function() {
+            document.getElementById('syncConflictModal').classList.remove('active');
+            await saveToFirestore(false);
+            print('✓ Lokaler Spielstand wird verwendet', 'success');
+            print('✓ Cloud aktualisiert', 'success');
+        };
+
+        window.chooseCloudSave = function() {
+            document.getElementById('syncConflictModal').classList.remove('active');
+            if (pendingCloudData) {
+                Object.assign(game, pendingCloudData);
+                game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
+                    startTime: Date.now() - (item.elapsed || 0)
+                }));
+                game.applesGrowing = (game.applesGrowing || []).map(item => ({
+                    startTime: Date.now() - (item.elapsed || 0)
+                }));
+                game.flourProducing = (game.flourProducing || []).map(item => ({
+                    startTime: Date.now() - (item.elapsed || 0)
+                }));
+                saveLocal();
+                updateDisplay();
+                print('✓ Cloud-Spielstand wird verwendet', 'success');
+            }
+        };
 
         // GitHub Login
         async function githubLogin() {
             try {
                 const result = await signInWithPopup(auth, provider);
                 currentUser = result.user;
-                print(`✓ Eingeloggt als: ${currentUser.displayName || currentUser.email}`, 'success');
-                print('Synchronisiere mit Cloud...', 'info');
-                await loadFromFirestore();
+                print(`✓ Eingeloggt als: ${currentUser.displayName || 'GitHub User'}`, 'success');
+                
+                // Load cloud data
+                const cloudData = await loadFromFirestore();
+                
+                if (cloudData) {
+                    // Check if local data is newer
+                    const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
+                    const localTime = localData.lastUpdate || 0;
+                    const cloudTime = cloudData.lastUpdate || 0;
+                    
+                    if (localTime > cloudTime && Math.abs(localTime - cloudTime) > 60000) {
+                        // Show conflict modal
+                        pendingCloudData = cloudData;
+                        showSyncConflict(localData, cloudData);
+                    } else {
+                        // Use cloud data
+                        Object.assign(game, cloudData);
+                        game.wheatGrowing = (game.wheatGrowing || []).map(item => ({
+                            startTime: Date.now() - (item.elapsed || 0)
+                        }));
+                        game.applesGrowing = (game.applesGrowing || []).map(item => ({
+                            startTime: Date.now() - (item.elapsed || 0)
+                        }));
+                        game.flourProducing = (game.flourProducing || []).map(item => ({
+                            startTime: Date.now() - (item.elapsed || 0)
+                        }));
+                        saveLocal();
+                        print('✓ Cloud-Daten geladen', 'success');
+                    }
+                } else {
+                    // First sync
+                    await saveToFirestore(false);
+                }
+                
                 updateDisplay();
             } catch (error) {
                 print('❌ Login fehlgeschlagen: ' + error.message, 'error');
@@ -489,7 +689,87 @@
             }
         }
 
+        // Login choice
+        window.acceptLogin = function() {
+            document.getElementById('loginChoiceModal').classList.remove('active');
+            game.loginChoiceShown = true;
+            saveLocal();
+            githubLogin();
+        };
+
+        window.declineLogin = function() {
+            document.getElementById('loginChoiceModal').classList.remove('active');
+            game.loginChoiceShown = true;
+            saveLocal();
+            print('Du kannst dich jederzeit über die Einstellungen anmelden!', 'info');
+        };
+
         // Modals
+        function openStatus() {
+            const modal = document.getElementById('statusModal');
+            const content = document.getElementById('statusContent');
+            
+            let html = '';
+            
+            // Wheat Growing
+            if (game.wheatGrowing.length > 0) {
+                html += '<div class="status-item"><div class="status-item-title">🌾 WEIZEN WÄCHST:</div>';
+                game.wheatGrowing.forEach((item, i) => {
+                    const elapsed = Date.now() - item.startTime;
+                    const remaining = Math.max(0, Math.ceil((game.growthTimes.wheat - elapsed) / 1000));
+                    const status = remaining > 0 ? `noch ${remaining}s` : '✓ FERTIG!';
+                    const className = remaining > 0 ? 'growing' : 'ready';
+                    html += `<div class="status-item-content ${className}">[${i+1}] ${status}</div>`;
+                });
+                html += '</div>';
+            }
+            
+            // Apples Growing
+            if (game.applesGrowing.length > 0) {
+                html += '<div class="status-item"><div class="status-item-title">🍎 ÄPFEL WACHSEN:</div>';
+                game.applesGrowing.forEach((item, i) => {
+                    const elapsed = Date.now() - item.startTime;
+                    const remaining = Math.max(0, Math.ceil((game.growthTimes.apple - elapsed) / 1000));
+                    const status = remaining > 0 ? `noch ${remaining}s` : '✓ FERTIG!';
+                    const className = remaining > 0 ? 'growing' : 'ready';
+                    html += `<div class="status-item-content ${className}">[${i+1}] ${status}</div>`;
+                });
+                html += '</div>';
+            }
+            
+            // Flour Producing
+            if (game.flourProducing.length > 0) {
+                html += '<div class="status-item"><div class="status-item-title">🏺 MEHL PRODUKTION:</div>';
+                game.flourProducing.forEach((item, i) => {
+                    const elapsed = Date.now() - item.startTime;
+                    const remaining = Math.max(0, Math.ceil((game.growthTimes.flour - elapsed) / 1000));
+                    const status = remaining > 0 ? `noch ${remaining}s` : '✓ FERTIG!';
+                    const className = remaining > 0 ? 'growing' : 'ready';
+                    html += `<div class="status-item-content ${className}">[${i+1}] ${status}</div>`;
+                });
+                html += '</div>';
+            }
+            
+            if (game.wheatGrowing.length === 0 && game.applesGrowing.length === 0 && game.flourProducing.length === 0) {
+                html += '<div class="status-item"><div class="status-item-title">🌱 PRODUKTION:</div>';
+                html += '<div class="status-item-content" style="color: #ffaa00;">Nichts wächst gerade</div></div>';
+            }
+            
+            // Buildings
+            html += '<div class="status-item"><div class="status-item-title">🏗️ GEBÄUDE:</div>';
+            html += `<div class="status-item-content">🌾 Weizenfelder: ${game.wheatFields}</div>`;
+            html += `<div class="status-item-content">🍎 Apfelbäume: ${game.appleTrees}</div>`;
+            html += `<div class="status-item-content">⚙️ Mühlen: ${game.mills}</div>`;
+            html += '</div>';
+            
+            content.innerHTML = html;
+            modal.classList.add('active');
+        }
+
+        function closeStatus() {
+            document.getElementById('statusModal').classList.remove('active');
+        }
+
         function openInventory() {
             const modal = document.getElementById('inventoryModal');
             const content = document.getElementById('inventoryContent');
@@ -503,24 +783,6 @@
                 </div>
                 <div class="modal-item">
                     <strong>🏺 Mehl:</strong> ${game.flour}
-                </div>
-                <div class="modal-item">
-                    <strong>🌾 Weizenfelder:</strong> ${game.wheatFields}
-                </div>
-                <div class="modal-item">
-                    <strong>🍎 Apfelbäume:</strong> ${game.appleTrees}
-                </div>
-                <div class="modal-item">
-                    <strong>⚙️ Mühlen:</strong> ${game.mills}
-                </div>
-                <div class="modal-item">
-                    <strong>🌱 Weizen wächst:</strong> ${game.wheatGrowing.length}/${game.wheatFields}
-                </div>
-                <div class="modal-item">
-                    <strong>🌱 Äpfel wachsen:</strong> ${game.applesGrowing.length}/${game.appleTrees}
-                </div>
-                <div class="modal-item">
-                    <strong>⚙️ Mehl produziert:</strong> ${game.flourProducing.length}/${game.mills}
                 </div>
             `;
             
@@ -536,18 +798,22 @@
             const content = document.getElementById('settingsContent');
             
             if (currentUser) {
+                const lastSyncText = lastSync > 0 
+                    ? new Date(lastSync).toLocaleString('de-DE')
+                    : 'Noch nie';
+                
                 content.innerHTML = `
                     <div class="modal-item">
-                        <strong>👤 Benutzer:</strong> ${currentUser.displayName || currentUser.email}
-                    </div>
-                    <div class="modal-item">
-                        <strong>📧 Email:</strong> ${currentUser.email || 'Nicht verfügbar'}
+                        <strong>👤 Benutzer:</strong> ${currentUser.displayName || 'GitHub User'}
                     </div>
                     <div class="modal-item">
                         <strong>🔗 Status:</strong> <span style="color: #00ff00;">Mit GitHub verbunden</span>
                     </div>
                     <div class="modal-item">
                         <strong>☁️ Cloud-Sync:</strong> <span style="color: #00ff00;">Aktiv</span>
+                    </div>
+                    <div class="modal-item">
+                        <strong>🕐 Letzte Sync:</strong> ${lastSyncText}
                     </div>
                     <button class="btn" style="width: 100%; margin-top: 10px;" onclick="logout()">Ausloggen</button>
                 `;
@@ -561,7 +827,7 @@
                     </div>
                     <div class="modal-item" style="padding: 20px; text-align: center;">
                         <p style="margin-bottom: 15px; color: #00aaff;">
-                            Verbinde dich mit GitHub, um deine Daten sicher in der Cloud zu speichern!
+                            Verbinde dich mit GitHub, um deine Daten sicher in der Cloud zu speichern und auf mehreren Geräten zu spielen!
                         </p>
                         <button class="btn" style="width: 100%;" onclick="githubLogin()">🔗 Mit GitHub verbinden</button>
                     </div>
@@ -625,6 +891,13 @@
             saveLocal();
             print('✓ Tutorial abgeschlossen! Viel Erfolg! 🎉', 'success');
             print('');
+            
+            // Show login choice after tutorial
+            if (!game.loginChoiceShown) {
+                setTimeout(() => {
+                    document.getElementById('loginChoiceModal').classList.add('active');
+                }, 500);
+            }
         };
 
         // Commands
@@ -657,9 +930,7 @@
                 print('  buy mill [anzahl]     - Mühle kaufen (400€)');
                 print('');
                 print('📊 INFO:', 'success');
-                print('  status    - Zeige Farm-Status');
                 print('  prices    - Zeige Preise');
-                print('  growing   - Zeige wachsende Pflanzen');
                 print('  login     - Mit GitHub einloggen');
                 print('  tutorial  - Tutorial erneut anzeigen');
                 print('  clear     - Bildschirm leeren');
@@ -669,41 +940,14 @@
             login: () => {
                 if (currentUser) {
                     print('Du bist bereits eingeloggt!', 'warning');
-                    print(`Benutzer: ${currentUser.displayName || currentUser.email}`, 'info');
+                    print(`Benutzer: ${currentUser.displayName || 'GitHub User'}`, 'info');
                 } else {
-                    print('Möchtest du dich mit GitHub verbinden?', 'info');
-                    print('Deine Daten werden dann sicher in der Cloud gespeichert.', 'info');
-                    print('');
-                    print('Öffne die Einstellungen (⚙️ Button oben rechts) zum Einloggen!', 'warning');
+                    githubLogin();
                 }
             },
 
             tutorial: () => {
                 startTutorial();
-            },
-
-            status: () => {
-                print('╔══════════════════════════════════════════════════╗', 'info');
-                print('║              FARM STATUS                         ║', 'info');
-                print('╚══════════════════════════════════════════════════╝', 'info');
-                print('');
-                print(`💰 Geld: ${game.money} €`, 'success');
-                print('');
-                print('📦 LAGER:', 'warning');
-                print(`  🌾 Weizen: ${game.wheat}`);
-                print(`  🍎 Äpfel: ${game.apples}`);
-                print(`  🏺 Mehl: ${game.flour}`);
-                print('');
-                print('🏗️ GEBÄUDE:', 'warning');
-                print(`  🌾 Weizenfelder: ${game.wheatFields}`);
-                print(`  🍎 Apfelbäume: ${game.appleTrees}`);
-                print(`  ⚙️ Mühlen: ${game.mills}`);
-                print('');
-                print('🌱 AKTIV:', 'warning');
-                print(`  Weizen wächst: ${game.wheatGrowing.length}/${game.wheatFields}`);
-                print(`  Äpfel wachsen: ${game.applesGrowing.length}/${game.appleTrees}`);
-                print(`  Mehl produziert: ${game.flourProducing.length}/${game.mills}`);
-                print('');
             },
 
             prices: () => {
@@ -721,58 +965,6 @@
                 print(`  🍎 Apfelbaum: ${game.prices.appleTree} €`);
                 print(`  ⚙️ Mühle: ${game.prices.mill} €`);
                 print('');
-            },
-
-            growing: () => {
-                print('🌱 WACHSTUMS-STATUS:', 'info');
-                print('');
-                
-                if (game.wheatGrowing.length > 0) {
-                    print(`🌾 WEIZEN (${game.wheatGrowing.length}):`, 'success');
-                    game.wheatGrowing.forEach((item, i) => {
-                        const elapsed = Date.now() - item.startTime;
-                        const remaining = Math.max(0, Math.ceil((game.growthTimes.wheat - elapsed) / 1000));
-                        if (remaining > 0) {
-                            print(`  [${i+1}] Noch ${remaining}s...`, 'growing');
-                        } else {
-                            print(`  [${i+1}] ✓ FERTIG!`, 'ready');
-                        }
-                    });
-                    print('');
-                }
-
-                if (game.applesGrowing.length > 0) {
-                    print(`🍎 ÄPFEL (${game.applesGrowing.length}):`, 'success');
-                    game.applesGrowing.forEach((item, i) => {
-                        const elapsed = Date.now() - item.startTime;
-                        const remaining = Math.max(0, Math.ceil((game.growthTimes.apple - elapsed) / 1000));
-                        if (remaining > 0) {
-                            print(`  [${i+1}] Noch ${remaining}s...`, 'growing');
-                        } else {
-                            print(`  [${i+1}] ✓ FERTIG!`, 'ready');
-                        }
-                    });
-                    print('');
-                }
-
-                if (game.flourProducing.length > 0) {
-                    print(`🏺 MEHL (${game.flourProducing.length}):`, 'success');
-                    game.flourProducing.forEach((item, i) => {
-                        const elapsed = Date.now() - item.startTime;
-                        const remaining = Math.max(0, Math.ceil((game.growthTimes.flour - elapsed) / 1000));
-                        if (remaining > 0) {
-                            print(`  [${i+1}] Noch ${remaining}s...`, 'growing');
-                        } else {
-                            print(`  [${i+1}] ✓ FERTIG!`, 'ready');
-                        }
-                    });
-                    print('');
-                }
-
-                if (game.wheatGrowing.length === 0 && game.applesGrowing.length === 0 && game.flourProducing.length === 0) {
-                    print('Nichts wächst gerade.', 'warning');
-                    print('');
-                }
             },
 
             plant: (args) => {
@@ -1131,42 +1323,53 @@
         });
 
         // Keep input focused
-        document.addEventListener('click', () => {
-            input.focus();
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.modal')) {
+                input.focus();
+            }
         });
 
         // Online/Offline detection
-        window.addEventListener('online', () => {
+        window.addEventListener('online', async () => {
             isOnline = true;
             updateSyncStatus();
             print('✓ Verbindung wiederhergestellt', 'success');
+            
             if (currentUser) {
-                loadFromFirestore();
+                const cloudData = await loadFromFirestore();
+                if (cloudData) {
+                    const localData = JSON.parse(localStorage.getItem('terminalFarmSave') || '{}');
+                    const localTime = localData.lastUpdate || 0;
+                    const cloudTime = cloudData.lastUpdate || 0;
+                    
+                    if (localTime > cloudTime && Math.abs(localTime - cloudTime) > 60000) {
+                        pendingCloudData = cloudData;
+                        showSyncConflict(localData, cloudData);
+                    } else {
+                        await saveToFirestore(false);
+                        print('✓ Cloud gespeichert', 'success');
+                    }
+                }
             }
         });
 
         window.addEventListener('offline', () => {
             isOnline = false;
             updateSyncStatus();
-            print('⚠️ Offline-Modus', 'warning');
+            print('⚠️ Offline-Modus - Speicherung lokal', 'warning');
         });
 
         // Auth state observer
         onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                updateSyncStatus();
-            } else {
-                currentUser = null;
-                updateSyncStatus();
-            }
+            currentUser = user;
+            updateSyncStatus();
         });
 
         // Auto-save (local every 10s, cloud every 60s if online)
         setInterval(() => {
             saveLocal();
             if (currentUser && isOnline && Date.now() - lastSync > 60000) {
-                saveToFirestore();
+                saveToFirestore(true);
             }
         }, 10000);
 
@@ -1181,7 +1384,7 @@
             print('');
             print('Baue Pflanzen an, produziere Waren und verkaufe sie!', 'info');
             print('');
-            print('Tippe "help" für alle Befehle oder "tutorial" für Hilfe!', 'warning');
+            print('Tippe "help" für alle Befehle!', 'warning');
             print('');
         }
 
