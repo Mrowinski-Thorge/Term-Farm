@@ -209,21 +209,18 @@ if ('serviceWorker' in navigator) {
             animation: blink 1s infinite;
         }
 
-        /* TERMINAL - ONLY SCROLLABLE ELEMENT */
-        #terminal {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding: 20px;
-            font-size: 14px;
-            line-height: 1.6;
-            min-height: 0;
-            -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain;
-            touch-action: pan-y;
-            isolation: isolate;
-        }
-
+#terminal {
+    flex: 1;
+    overflow-y: scroll;  /* ✅ GEÄNDERT: scroll statt auto */
+    overflow-x: hidden;
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;  /* ✅ Scroll erlauben */
+}
         #terminal::-webkit-scrollbar {
             width: 10px;
         }
