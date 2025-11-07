@@ -1015,113 +1015,117 @@ if ('serviceWorker' in navigator) {
         }
 
         async function openSettings() {
-            const modal = document.getElementById('settingsModal');
-            const content = document.getElementById('settingsContent');
-            
-            if (currentUser) {
-                let cloudStatusText = 'Wird geladen...';
-                let cloudStatusColor = '#ffaa00';
+    const modal = document.getElementById('settingsModal');
+    const content = document.getElementById('settingsContent');
+    
+    if (currentUser) {
+        let cloudStatusText = 'Wird geladen...';
+        let cloudStatusColor = '#ffaa00';
+        
+        if (!isOnline) {
+            cloudStatusText = 'Keine Verbindung';
+            cloudStatusColor = '#ff0000';
+        } else {
+            try {
+                const docRef = doc(db, "farms", currentUser.uid);
+                const docSnap = await getDoc(docRef);
                 
-                if (!isOnline) {
-                    cloudStatusText = 'Keine Verbindung';
-                    cloudStatusColor = '#ff0000';
+                if (docSnap.exists()) {
+                    const cloudData = docSnap.data();
+                    lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
+                    const backupDate = new Date(lastCloudBackup);
+                    cloudStatusText = backupDate.toLocaleString('de-DE');
+                    cloudStatusColor = '#00ff00';
                 } else {
-                    try {
-                        const docRef = doc(db, "farms", currentUser.uid);
-                        const docSnap = await getDoc(docRef);
-                        
-                        if (docSnap.exists()) {
-                            const cloudData = docSnap.data();
-                            lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
-                            const backupDate = new Date(lastCloudBackup);
-                            cloudStatusText = backupDate.toLocaleString('de-DE');
-                            cloudStatusColor = '#00ff00';
-                        } else {
-                            cloudStatusText = 'Noch keine Sicherung';
-                            cloudStatusColor = '#ffaa00';
-                        }
-                    } catch (error) {
-                        console.error('Cloud status check failed:', error);
-                        cloudStatusText = 'Fehler beim Laden';
-                        cloudStatusColor = '#ff0000';
-                    }
+                    cloudStatusText = 'Noch keine Sicherung';
+                    cloudStatusColor = '#ffaa00';
                 }
-                
-                const username = currentUser.displayName || 
-                               currentUser.reloadUserInfo?.screenName || 
-                               currentUser.email?.split('@')[0] ||
-                               'GitHub User';
-                
-                content.innerHTML = `
-                    <div class="modal-item">
-                        <strong>👤 Angemeldet als:</strong> ${username}
-                    </div>
-                    <div class="modal-item">
-                        <strong>🕐 Letzte Cloud-Sicherung:</strong><br>
-                        <span style="color: ${cloudStatusColor};">${cloudStatusText}</span>
-                    </div>
-                    <div class="modal-item" style="background: #001100; border-color: #00aaff;">
-                        <strong>💾 Speicherung:</strong> Lokal (alle 2s automatisch)
-                    </div>
-                    <div class="modal-buttons">
-                        <button class="btn" id="backupBtn" style="border-color: #00aaff; color: #00aaff;">☁️ Sichern</button>
-                        <button class="btn" id="restoreBtn">↓ Wiederherstellen</button>
-                        <button class="btn" id="logoutBtn" style="border-color: #ff0000; color: #ff0000;">Ausloggen</button>
-                        <button class="btn" id="closeSettingsBtn2">Schließen</button>
-                    </div>
-                `;
-                
-                document.getElementById('logoutBtn').addEventListener('click', () => {
-                    closeSettings();
-                    logout();
-                });
-                
-                document.getElementById('backupBtn').addEventListener('click', async () => {
-                    closeSettings();
-                    await backupToCloud();
-                });
-                
-                document.getElementById('restoreBtn').addEventListener('click', async () => {
-                    closeSettings();
-                    await restoreFromCloud();
-                });
-                
-                document.getElementById('closeSettingsBtn2').addEventListener('click', closeSettings);
-            } else {
-                content.innerHTML = `
-                    <div class="modal-item">
-                        <strong>👤 Status:</strong> <span style="color: #ffaa00;">Nicht angemeldet</span>
-                    </div>
-                    <div class="modal-item">
-                        <strong>💾 Speicherung:</strong> <span style="color: #00ff00;">Lokal (alle 2s automatisch)</span>
-                    </div>
-                    <div class="modal-item" style="padding: 20px; background: #001100; border-color: #00aaff;">
-                        <strong style="color: #00aaff;">☁️ Cloud-Sicherung (Optional)</strong>
-                        <p style="margin-top: 10px; color: #00aaff; font-size: 14px;">
-                            Melde dich mit GitHub an, um deine Daten zusätzlich in der Cloud zu sichern!
-                        </p>
-                        <p style="margin-top: 10px; color: #00ff00; font-size: 13px;">
-                            ✓ Zusätzliches Backup<br>
-                            ✓ Manuell wiederherstellbar<br>
-                            ✓ Völlig optional
-                        </p>
-                    </div>
-                    <div class="modal-buttons">
-                        <button class="btn" id="loginBtn">🔗 Mit GitHub anmelden</button>
-                        <button class="btn" id="closeSettingsBtn3">Schließen</button>
-                    </div>
-                `;
-                
-                document.getElementById('loginBtn').addEventListener('click', () => {
-                    closeSettings();
-                    githubLogin();
-                });
-                
-                document.getElementById('closeSettingsBtn3').addEventListener('click', closeSettings);
+            } catch (error) {
+                console.error('Cloud status check failed:', error);
+                cloudStatusText = 'Fehler beim Laden';
+                cloudStatusColor = '#ff0000';
             }
-            
-            modal.classList.add('active');
         }
+        
+        const username = currentUser.displayName || 
+                       currentUser.reloadUserInfo?.screenName || 
+                       currentUser.email?.split('@')[0] ||
+                       'GitHub User';
+        
+        content.innerHTML = `
+            <div class="modal-item">
+                <strong>👤 Angemeldet als:</strong> ${username}
+            </div>
+            <div class="modal-item">
+                <strong>🕐 Letzte Cloud-Sicherung:</strong><br>
+                <span style="color: ${cloudStatusColor};">${cloudStatusText}</span>
+            </div>
+            <div class="modal-item" style="background: #001100; border-color: #00aaff;">
+                <strong>💾 Speicherung:</strong> Lokal (alle 2s automatisch)
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="backupBtn" style="border-color: #00aaff; color: #00aaff;">☁️ Sichern</button>
+                <button class="btn" id="restoreBtn">↓ Wiederherstellen</button>
+                <button class="btn" id="logoutBtn" style="border-color: #ff0000; color: #ff0000;">Ausloggen</button>
+            </div>
+            <div class="modal-buttons" style="justify-content: center; margin-top: 10px;">
+                <button class="btn" id="closeSettingsBtn2" style="width: 100%;">Schließen</button>
+            </div>
+        `;
+        
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            closeSettings();
+            logout();
+        });
+        
+        document.getElementById('backupBtn').addEventListener('click', async () => {
+            closeSettings();
+            await backupToCloud();
+        });
+        
+        document.getElementById('restoreBtn').addEventListener('click', async () => {
+            closeSettings();
+            await restoreFromCloud();
+        });
+        
+        document.getElementById('closeSettingsBtn2').addEventListener('click', closeSettings);
+    } else {
+        content.innerHTML = `
+            <div class="modal-item">
+                <strong>👤 Status:</strong> <span style="color: #ffaa00;">Nicht angemeldet</span>
+            </div>
+            <div class="modal-item">
+                <strong>💾 Speicherung:</strong> <span style="color: #00ff00;">Lokal (alle 2s automatisch)</span>
+            </div>
+            <div class="modal-item" style="padding: 20px; background: #001100; border-color: #00aaff;">
+                <strong style="color: #00aaff;">☁️ Cloud-Sicherung (Optional)</strong>
+                <p style="margin-top: 10px; color: #00aaff; font-size: 14px;">
+                    Melde dich mit GitHub an, um deine Daten zusätzlich in der Cloud zu sichern!
+                </p>
+                <p style="margin-top: 10px; color: #00ff00; font-size: 13px;">
+                    ✓ Zusätzliches Backup<br>
+                    ✓ Manuell wiederherstellbar<br>
+                    ✓ Völlig optional
+                </p>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="loginBtn">🔗 Mit GitHub anmelden</button>
+            </div>
+            <div class="modal-buttons" style="justify-content: center; margin-top: 10px;">
+                <button class="btn" id="closeSettingsBtn3" style="width: 100%;">Schließen</button>
+            </div>
+        `;
+        
+        document.getElementById('loginBtn').addEventListener('click', () => {
+            closeSettings();
+            githubLogin();
+        });
+        
+        document.getElementById('closeSettingsBtn3').addEventListener('click', closeSettings);
+    }
+    
+    modal.classList.add('active');
+}
 
         function closeSettings() {
             document.getElementById('settingsModal').classList.remove('active');
@@ -1543,84 +1547,50 @@ if ('serviceWorker' in navigator) {
             print('');
         }
 
-        // ============================================
-        // EVENT LISTENERS - TERMINAL ONLY SCROLL
-        // ============================================
+       // ============================================
+// EVENT LISTENERS - SIMPLIFIED
+// ============================================
 
-        document.getElementById('statusBtn').addEventListener('click', openStatus);
-        document.getElementById('inventoryBtn').addEventListener('click', openInventory);
-        document.getElementById('settingsBtn').addEventListener('click', openSettings);
-        document.getElementById('closeStatusBtn').addEventListener('click', closeStatus);
-        document.getElementById('closeInventoryBtn').addEventListener('click', closeInventory);
+document.getElementById('statusBtn').addEventListener('click', openStatus);
+document.getElementById('inventoryBtn').addEventListener('click', openInventory);
+document.getElementById('settingsBtn').addEventListener('click', openSettings);
+document.getElementById('closeStatusBtn').addEventListener('click', closeStatus);
+document.getElementById('closeInventoryBtn').addEventListener('click', closeInventory);
 
-        input.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const cmd = input.value;
-                input.value = '';
-                processCommand(cmd);
-            }
-        });
+input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        const cmd = input.value;
+        input.value = '';
+        processCommand(cmd);
+    }
+});
 
-        // STRICT SCROLL CONTROL - NUR TERMINAL
-        document.body.addEventListener('touchmove', (e) => {
-            const inTerminal = e.target.closest('#terminal');
-            if (!inTerminal) {
-                e.preventDefault();
-            }
-        }, { passive: false });
+// KEIN Body touchmove preventDefault mehr!
+// Terminal kann frei scrollen durch CSS touch-action: pan-y
 
-        // Terminal Scroll erlauben
-        terminal.addEventListener('touchstart', (e) => {
-            e.stopPropagation();
-        }, { passive: true });
+// Prevent double-tap zoom
+let lastTouchEnd = 0;
+document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+    }
+    lastTouchEnd = now;
+}, false);
 
-        terminal.addEventListener('touchmove', (e) => {
-            e.stopPropagation();
-            
-            // Verhindere Over-Scroll
-            const scrollTop = terminal.scrollTop;
-            const scrollHeight = terminal.scrollHeight;
-            const clientHeight = terminal.clientHeight;
-            const atTop = scrollTop === 0;
-            const atBottom = scrollTop + clientHeight >= scrollHeight;
-            
-            const touch = e.touches[0];
-            const deltaY = touch.clientY - (terminal._lastTouchY || touch.clientY);
-            terminal._lastTouchY = touch.clientY;
-            
-            if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
-                e.preventDefault();
-            }
-        }, { passive: false });
+// Prevent pinch zoom
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('gesturechange', (e) => e.preventDefault());
+document.addEventListener('gestureend', (e) => e.preventDefault());
 
-        terminal.addEventListener('touchend', () => {
-            delete terminal._lastTouchY;
-        }, { passive: true });
-
-        // Prevent double-tap zoom
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            if (now - lastTouchEnd <= 300) {
-                e.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, false);
-
-        // Prevent pinch zoom
-        document.addEventListener('gesturestart', (e) => e.preventDefault());
-        document.addEventListener('gesturechange', (e) => e.preventDefault());
-        document.addEventListener('gestureend', (e) => e.preventDefault());
-
-        // Focus management
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.modal-content') && 
-                !e.target.closest('.blocking-screen') && 
-                !e.target.closest('.btn')) {
-                input.focus();
-            }
-        });
-
+// Focus management
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.modal-content') && 
+        !e.target.closest('.blocking-screen') && 
+        !e.target.closest('.btn')) {
+        input.focus();
+    }
+});
         // ============================================
         // CONNECTION & LIFECYCLE
         // ============================================
