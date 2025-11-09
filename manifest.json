@@ -1,0 +1,27 @@
+{
+  "name": "Terminal Farm",
+  "short_name": "TermFarm",
+  "description": "Ein Befehlszeilen-basiertes Farmspiel",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#00ff00",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%230a0a0a'/><rect x='19.2' y='19.2' width='153.6' height='153.6' fill='none' stroke='%2300ff00' stroke-width='9.6'/><text x='96' y='120' font-size='80' text-anchor='middle' fill='%2300ff00' font-family='monospace' font-weight='bold'>TF</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%230a0a0a'/><rect x='51.2' y='51.2' width='409.6' height='409.6' fill='none' stroke='%2300ff00' stroke-width='25.6'/><text x='256' y='320' font-size='200' text-anchor='middle' fill='%2300ff00' font-family='monospace' font-weight='bold'>TF</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "entertainment"],
+  "scope": "/",
+  "prefer_related_applications": false
+}
