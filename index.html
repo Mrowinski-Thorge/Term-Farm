@@ -1489,38 +1489,40 @@
                 }
 
                 if (type === 'field') {
-    const cost = game.prices.wheatField * amount;
-    if (game.money < cost) {
-        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
-        return;
-    }
-    game.money -= cost;
-    game.wheatFields += amount;
-    print(`✓ ${amount}x Feld gekauft! (-${cost} €)`, 'success');
-} else if (type === 'tree') {
-    const cost = game.prices.appleTree * amount;
-    if (game.money < cost) {
-        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
-        return;
-    }
-    game.money -= cost;
-    game.appleTrees += amount;
-    print(`✓ ${amount}x Baum gekauft! (-${cost} €)`, 'success');
-} else if (type === 'mill') {
-    const cost = game.prices.mill * amount;
-    if (game.money < cost) {
-        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
-        return;
-    }
-    game.money -= cost;
-    game.mills += amount;
-    print(`✓ ${amount}x Mühle gekauft! (-${cost} €)`, 'success');
-} else {
-    print('❌ Nutze: field, tree oder mill', 'error');
-    return;
-}
-saveLocal();
-updateDisplay();
+                    const cost = game.prices.wheatField * amount;
+                    if (game.money < cost) {
+                        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
+                        return;
+                    }
+                    game.money -= cost;
+                    game.wheatFields += amount;
+                    print(`✓ ${amount}x Feld gekauft! (-${cost} €)`, 'success');
+                               } else if (type === 'tree') {
+                    const cost = game.prices.appleTree * amount;
+                    if (game.money < cost) {
+                        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
+                        return;
+                    }
+                    game.money -= cost;
+                    game.appleTrees += amount;
+                    print(`✓ ${amount}x Baum gekauft! (-${cost} €)`, 'success');
+                } else if (type === 'mill') {
+                    const cost = game.prices.mill * amount;
+                    if (game.money < cost) {
+                        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
+                        return;
+                    }
+                    game.money -= cost;
+                    game.mills += amount;
+                    print(`✓ ${amount}x Mühle gekauft! (-${cost} €)`, 'success');
+                } else {
+                    print('❌ Nutze: field, tree oder mill', 'error');
+                    return;
+                }
+                saveLocal();
+                updateDisplay();
+            },
+
             clear: () => {
                 terminal.innerHTML = '';
             }
@@ -1719,6 +1721,17 @@ updateDisplay();
             if (!game.tutorialCompleted) {
                 setTimeout(startTutorial, 1000);
             }
+        }
+    </script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('✓ Service Worker registered'))
+                    .catch(err => console.log('✗ Service Worker failed:', err));
+            });
         }
     </script>
 </body>
