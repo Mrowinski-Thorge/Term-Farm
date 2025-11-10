@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Terminal Farm">
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0a'/><rect x='10' y='10' width='80' height='80' fill='none' stroke='%2300ff00' stroke-width='5'/><text x='50' y='65' font-size='40' text-anchor='middle' fill='%2300ff00' font-family='monospace'>TF</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230a0a0a'/><rect x='10' y='10' width='80' height='80' fill='%2300ff00'/><rect x='15' y='15' width='70' height='70' fill='%230a0a0a'/><text x='50' y='65' font-size='48' text-anchor='middle' fill='%2300ff00'>🌾</text></svg>">
     <title>Terminal Farm</title>
     <style>
         * {
@@ -302,7 +302,7 @@
             51%, 100% { opacity: 0.3; }
         }
 
-        /* Modal Styles - NOT SCROLLABLE */
+        /* Modal Styles - Modal fest, Inhalt komplett scrollbar */
         .modal {
             display: none;
             position: fixed;
@@ -328,7 +328,21 @@
             max-width: 700px;
             width: 90%;
             max-height: 85vh;
-            overflow: hidden;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-content::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .modal-content::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        .modal-content::-webkit-scrollbar-thumb {
+            background: #00ff00;
         }
 
         .modal-title {
@@ -1000,13 +1014,16 @@
             
             content.innerHTML = `
                 <div class="modal-item">
-                    <strong>🌾 Weizen:</strong> ${game.wheat}
+                    <strong>🌾 Weizen:</strong> ${game.wheat} Einheiten
                 </div>
                 <div class="modal-item">
-                    <strong>🍎 Äpfel:</strong> ${game.apples}
+                    <strong>🍎 Äpfel:</strong> ${game.apples} Einheiten
                 </div>
                 <div class="modal-item">
-                    <strong>🏺 Mehl:</strong> ${game.flour}
+                    <strong>🏺 Mehl:</strong> ${game.flour} Einheiten
+                </div>
+                <div class="modal-item" style="border-color: #ffaa00; background: #221100;">
+                    <strong>💰 Geld:</strong> ${game.money} €
                 </div>
             `;
             
@@ -1017,166 +1034,119 @@
             document.getElementById('inventoryModal').classList.remove('active');
         }
 
-        async function openSettings() {
+        function openSettings() {
             const modal = document.getElementById('settingsModal');
             const content = document.getElementById('settingsContent');
             
+            const loginStatus = currentUser 
+                ? `✓ Eingeloggt als ${currentUser.displayName || 'GitHub User'}`
+                : '✗ Nicht eingeloggt';
+            
+            const cloudBackupInfo = lastCloudBackup > 0
+                ? `Letzte Cloud-Sicherung: ${new Date(lastCloudBackup).toLocaleString('de-DE')}`
+                : 'Keine Cloud-Sicherung vorhanden';
+            
+            content.innerHTML = `
+                <div class="status-item">
+                    <div class="status-item-title">👤 ACCOUNT STATUS</div>
+                    <div class="status-item-content">${loginStatus}</div>
+                    ${currentUser ? `<div class="status-item-content" style="color: #00aaff; margin-top: 10px;">${cloudBackupInfo}</div>` : ''}
+                </div>
+                
+                <div class="status-item">
+                    <div class="status-item-title">☁️ CLOUD FUNKTIONEN</div>
+                    <div class="status-item-content" style="color: #00aaff;">
+                        Cloud-Sicherungen ermöglichen dir, deinen Spielstand auf mehreren Geräten zu synchronisieren.
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <div class="status-item-title">📖 VERFÜGBARE BEFEHLE</div>
+                    <div class="status-item-content">login - Mit GitHub einloggen</div>
+                    <div class="status-item-content">logout - Von GitHub ausloggen</div>
+                    <div class="status-item-content">backup - Cloud-Sicherung erstellen</div>
+                    <div class="status-item-content">restore - Cloud-Sicherung wiederherstellen</div>
+                    <div class="status-item-content">help - Alle Befehle anzeigen</div>
+                </div>
+                
+                <div class="modal-buttons">
+                    ${currentUser 
+                        ? '<button class="btn" id="logoutBtn">Ausloggen</button>' 
+                        : '<button class="btn" id="loginBtn">Mit GitHub einloggen</button>'}
+                    <button class="btn" id="closeSettingsBtn">Schließen</button>
+                </div>
+            `;
+            
             if (currentUser) {
-                let cloudStatusText = 'Wird geladen...';
-                let cloudStatusColor = '#ffaa00';
-                
-                if (!isOnline) {
-                    cloudStatusText = 'Keine Verbindung';
-                    cloudStatusColor = '#ff0000';
-                } else {
-                    try {
-                        const docRef = doc(db, "farms", currentUser.uid);
-                        const docSnap = await getDoc(docRef);
-                        
-                        if (docSnap.exists()) {
-                            const cloudData = docSnap.data();
-                            lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
-                            const backupDate = new Date(lastCloudBackup);
-                            cloudStatusText = backupDate.toLocaleString('de-DE');
-                            cloudStatusColor = '#00ff00';
-                        } else {
-                            cloudStatusText = 'Noch keine Sicherung';
-                            cloudStatusColor = '#ffaa00';
-                        }
-                    } catch (error) {
-                        console.error('Cloud status check failed:', error);
-                        cloudStatusText = 'Fehler beim Laden';
-                        cloudStatusColor = '#ff0000';
-                    }
-                }
-                
-                const username = currentUser.displayName || 
-                               currentUser.reloadUserInfo?.screenName || 
-                               currentUser.email?.split('@')[0] ||
-                               'GitHub User';
-                
-                content.innerHTML = `
-                    <div class="modal-item">
-                        <strong>👤 Angemeldet als:</strong> ${username}
-                    </div>
-                    <div class="modal-item">
-                        <strong>🕐 Letzte Cloud-Sicherung:</strong><br>
-                        <span style="color: ${cloudStatusColor};">${cloudStatusText}</span>
-                    </div>
-                    <div class="modal-item" style="background: #001100; border-color: #00aaff;">
-                        <strong>💾 Speicherung:</strong> Lokal (alle 2s automatisch)
-                    </div>
-                    <div class="modal-buttons">
-                        <button class="btn" id="backupBtn" style="border-color: #00aaff; color: #00aaff;">☁️ Sichern</button>
-                        <button class="btn" id="restoreBtn">↓ Wiederherstellen</button>
-                        <button class="btn" id="logoutBtn" style="border-color: #ff0000; color: #ff0000;">Ausloggen</button>
-                        <button class="btn" id="closeSettingsBtn2">Schließen</button>
-                    </div>
-                `;
-                
-                document.getElementById('logoutBtn').addEventListener('click', () => {
-                    closeSettings();
-                    logout();
+                document.getElementById('logoutBtn').addEventListener('click', async () => {
+                    await logout();
+                    modal.classList.remove('active');
                 });
-                
-                document.getElementById('backupBtn').addEventListener('click', async () => {
-                    closeSettings();
-                    await backupToCloud();
-                });
-                
-                document.getElementById('restoreBtn').addEventListener('click', async () => {
-                    closeSettings();
-                    await restoreFromCloud();
-                });
-                
-                document.getElementById('closeSettingsBtn2').addEventListener('click', closeSettings);
             } else {
-                content.innerHTML = `
-                    <div class="modal-item">
-                        <strong>👤 Status:</strong> <span style="color: #ffaa00;">Nicht angemeldet</span>
-                    </div>
-                    <div class="modal-item">
-                        <strong>💾 Speicherung:</strong> <span style="color: #00ff00;">Lokal (alle 2s automatisch)</span>
-                    </div>
-                    <div class="modal-item" style="padding: 20px; background: #001100; border-color: #00aaff;">
-                        <strong style="color: #00aaff;">☁️ Cloud-Sicherung (Optional)</strong>
-                        <p style="margin-top: 10px; color: #00aaff; font-size: 14px;">
-                            Melde dich mit GitHub an, um deine Daten zusätzlich in der Cloud zu sichern!
-                        </p>
-                        <p style="margin-top: 10px; color: #00ff00; font-size: 13px;">
-                            ✓ Zusätzliches Backup<br>
-                            ✓ Manuell wiederherstellbar<br>
-                            ✓ Völlig optional
-                        </p>
-                    </div>
-                    <div class="modal-buttons">
-                        <button class="btn" id="loginBtn">🔗 Mit GitHub anmelden</button>
-                        <button class="btn" id="closeSettingsBtn3">Schließen</button>
-                    </div>
-                `;
-                
-                document.getElementById('loginBtn').addEventListener('click', () => {
-                    closeSettings();
-                    githubLogin();
+                document.getElementById('loginBtn').addEventListener('click', async () => {
+                    modal.classList.remove('active');
+                    await githubLogin();
                 });
-                
-                document.getElementById('closeSettingsBtn3').addEventListener('click', closeSettings);
             }
+            
+            document.getElementById('closeSettingsBtn').addEventListener('click', () => {
+                modal.classList.remove('active');
+            });
             
             modal.classList.add('active');
         }
 
-        function closeSettings() {
-            document.getElementById('settingsModal').classList.remove('active');
-        }
-
-        function startTutorial() {
+        function showTutorial() {
             const modal = document.getElementById('tutorialModal');
             const content = document.getElementById('tutorialContent');
             
             content.innerHTML = `
                 <div class="tutorial-step">
-                    <h3>Schritt 1: Felder bepflanzen 🌾</h3>
-                    <p>Tippe: <strong style="color: #ffaa00;">plant wheat 3</strong></p>
-                    <p>Dies pflanzt Weizen auf 3 deiner Felder. Weizen wächst 30 Sekunden.</p>
+                    <h3>🌾 1. PFLANZEN & ERNTEN</h3>
+                    <p>Tippe <strong>plant wheat</strong> um Weizen anzupflanzen (kostet 2€)</p>
+                    <p>Nach 30 Sekunden kannst du mit <strong>harvest wheat</strong> ernten</p>
+                    <p>Verkaufe deinen Weizen mit <strong>sell wheat</strong> für 8€!</p>
                 </div>
                 
                 <div class="tutorial-step">
-                    <h3>Schritt 2: Ernten 📦</h3>
-                    <p>Warte 30 Sekunden und tippe: <strong style="color: #ffaa00;">harvest all</strong></p>
-                    <p>Dies erntet alle fertigen Pflanzen.</p>
+                    <h3>🍎 2. ÄPFEL ANBAUEN</h3>
+                    <p>Tippe <strong>plant apples</strong> um Äpfel anzubauen (kostet 5€)</p>
+                    <p>Nach 60 Sekunden kannst du mit <strong>harvest apples</strong> ernten</p>
+                    <p>Verkaufe deine Äpfel mit <strong>sell apples</strong> für 15€!</p>
                 </div>
                 
                 <div class="tutorial-step">
-                    <h3>Schritt 3: Verkaufen 💰</h3>
-                    <p>Tippe: <strong style="color: #ffaa00;">sell all</strong></p>
-                    <p>Dies verkauft alles und bringt dir Geld!</p>
+                    <h3>🏺 3. MEHL PRODUZIEREN</h3>
+                    <p>Tippe <strong>produce flour</strong> um Mehl herzustellen (kostet 3 Weizen)</p>
+                    <p>Nach 120 Sekunden ist das Mehl fertig: <strong>collect flour</strong></p>
+                    <p>Verkaufe dein Mehl mit <strong>sell flour</strong> für 25€!</p>
                 </div>
                 
                 <div class="tutorial-step">
-                    <h3>Schritt 4: Erweitern 🏗️</h3>
-                    <p>Tippe: <strong style="color: #ffaa00;">buy field</strong></p>
-                    <p>Kaufe mehr Felder, Bäume und Mühlen!</p>
+                    <h3>🏗️ 4. EXPANDIEREN</h3>
+                    <p>Kaufe mehr Felder mit <strong>buy field</strong> (100€)</p>
+                    <p>Kaufe mehr Bäume mit <strong>buy tree</strong> (200€)</p>
+                    <p>Kaufe mehr Mühlen mit <strong>buy mill</strong> (400€)</p>
                 </div>
                 
                 <div class="tutorial-step">
-                    <h3>Weitere Befehle 📋</h3>
-                    <p>Tippe: <strong style="color: #ffaa00;">help</strong></p>
-                    <p>Für alle Befehle.</p>
+                    <h3>📊 5. ÜBERSICHT</h3>
+                    <p>Nutze die Buttons oben:</p>
+                    <p><strong>📊 Status</strong> - Zeigt was gerade wächst</p>
+                    <p><strong>📦 Inventar</strong> - Zeigt deine Ressourcen</p>
+                    <p><strong>⚙️ Einstellungen</strong> - Cloud-Sicherung & mehr</p>
                 </div>
                 
                 <div class="modal-buttons">
-                    <button class="btn" id="closeTutorialBtn" style="font-size: 18px; padding: 15px;">
-                        Los geht's! 🚀
-                    </button>
+                    <button class="btn large" id="closeTutorialBtn">Los geht's! 🚀</button>
                 </div>
             `;
             
             document.getElementById('closeTutorialBtn').addEventListener('click', () => {
-                document.getElementById('tutorialModal').classList.remove('active');
+                modal.classList.remove('active');
                 game.tutorialCompleted = true;
                 saveLocal();
-                print('✓ Tutorial abgeschlossen! Viel Erfolg! 🎉', 'success');
+                print('✓ Tutorial abgeschlossen! Viel Erfolg! 🌾', 'success');
                 print('');
             });
             
@@ -1184,555 +1154,370 @@
         }
 
         // ============================================
-        // COMMANDS
+        // GAME COMMANDS
         // ============================================
 
         const commands = {
             help: () => {
-                print('╔══════════════════════════════════════════════════╗', 'info');
-                print('║              VERFÜGBARE BEFEHLE                  ║', 'info');
-                print('╚══════════════════════════════════════════════════╝', 'info');
+                print('📖 VERFÜGBARE BEFEHLE:', 'info');
                 print('');
-                print('🌱 ANBAUEN: plant wheat/apple [anzahl]', 'success');
-                print('🏺 PRODUZIEREN: produce flour [anzahl]', 'success');
-                print('📦 ERNTEN: harvest wheat/apple/flour/all [anzahl]', 'success');
-                print('💰 VERKAUFEN: sell wheat/apple/flour/all [anzahl]', 'success');
-                print('🏗️ KAUFEN: buy field/tree/mill [anzahl]', 'success');
-                print('📊 INFO: prices, clear', 'success');
-                print('☁️ CLOUD: login, backup, restore', 'success');
+                print('🌾 WEIZEN:');
+                print('  plant wheat    - Weizen pflanzen (2€, 30s)');
+                print('  harvest wheat  - Weizen ernten');
+                print('  sell wheat     - Weizen verkaufen (8€)');
+                print('');
+                print('🍎 ÄPFEL:');
+                print('  plant apples   - Äpfel pflanzen (5€, 60s)');
+                print('  harvest apples - Äpfel ernten');
+                print('  sell apples    - Äpfel verkaufen (15€)');
+                print('');
+                print('🏺 MEHL:');
+                print('  produce flour  - Mehl herstellen (3 Weizen, 120s)');
+                print('  collect flour  - Mehl einsammeln');
+                print('  sell flour     - Mehl verkaufen (25€)');
+                print('');
+                print('🏗️ GEBÄUDE:');
+                print('  buy field      - Weizenfeld kaufen (100€)');
+                print('  buy tree       - Apfelbaum kaufen (200€)');
+                print('  buy mill       - Mühle kaufen (400€)');
+                print('');
+                print('☁️ CLOUD:');
+                print('  login          - Mit GitHub einloggen');
+                print('  logout         - Von GitHub ausloggen');
+                print('  backup         - In Cloud sichern');
+                print('  restore        - Von Cloud wiederherstellen');
+                print('');
+                print('📊 INFO:');
+                print('  status         - Produktionsstatus');
+                print('  inventory      - Inventar anzeigen');
+                print('  prices         - Preisübersicht');
+                print('  tutorial       - Tutorial erneut anzeigen');
+                print('  clear          - Terminal leeren');
                 print('');
             },
 
-            login: () => {
-                githubLogin();
+            'plant wheat': () => {
+                if (game.wheatGrowing.length >= game.wheatFields) {
+                    print(`❌ Alle ${game.wheatFields} Felder belegt!`, 'error');
+                    return;
+                }
+                if (game.money < 2) {
+                    print('❌ Nicht genug Geld! (benötigt: 2€)', 'error');
+                    return;
+                }
+                game.money -= 2;
+                game.wheatGrowing.push({ startTime: Date.now() });
+                print('🌾 Weizen gepflanzt! (Wächst 30 Sekunden)', 'success');
+                updateDisplay();
+                saveLocal();
             },
 
-            backup: async () => {
-                await backupToCloud();
+            'harvest wheat': () => {
+                const now = Date.now();
+                let harvested = 0;
+                game.wheatGrowing = game.wheatGrowing.filter(item => {
+                    if (now - item.startTime >= game.growthTimes.wheat) {
+                        harvested++;
+                        return false;
+                    }
+                    return true;
+                });
+                
+                if (harvested > 0) {
+                    game.wheat += harvested;
+                    print(`✓ ${harvested} Weizen geerntet!`, 'success');
+                    updateDisplay();
+                    saveLocal();
+                } else {
+                    print('❌ Kein Weizen fertig!', 'error');
+                }
             },
 
-            restore: async () => {
-                await restoreFromCloud();
+            'sell wheat': () => {
+                if (game.wheat === 0) {
+                    print('❌ Kein Weizen im Inventar!', 'error');
+                    return;
+                }
+                const earned = game.wheat * game.prices.wheat;
+                game.money += earned;
+                print(`💰 ${game.wheat} Weizen für ${earned}€ verkauft!`, 'success');
+                game.wheat = 0;
+                updateDisplay();
+                saveLocal();
             },
+
+            'plant apples': () => {
+                if (game.applesGrowing.length >= game.appleTrees) {
+                    print(`❌ Alle ${game.appleTrees} Bäume belegt!`, 'error');
+                    return;
+                }
+                if (game.money < 5) {
+                    print('❌ Nicht genug Geld! (benötigt: 5€)', 'error');
+                    return;
+                }
+                game.money -= 5;
+                game.applesGrowing.push({ startTime: Date.now() });
+                print('🍎 Äpfel gepflanzt! (Wächst 60 Sekunden)', 'success');
+                updateDisplay();
+                saveLocal();
+            },
+
+            'harvest apples': () => {
+                const now = Date.now();
+                let harvested = 0;
+                game.applesGrowing = game.applesGrowing.filter(item => {
+                    if (now - item.startTime >= game.growthTimes.apple) {
+                        harvested++;
+                        return false;
+                    }
+                    return true;
+                });
+                
+                if (harvested > 0) {
+                    game.apples += harvested;
+                    print(`✓ ${harvested} Äpfel geerntet!`, 'success');
+                    updateDisplay();
+                    saveLocal();
+                } else {
+                    print('❌ Keine Äpfel fertig!', 'error');
+                }
+            },
+
+            'sell apples': () => {
+                if (game.apples === 0) {
+                    print('❌ Keine Äpfel im Inventar!', 'error');
+                    return;
+                }
+                const earned = game.apples * game.prices.apple;
+                game.money += earned;
+                print(`💰 ${game.apples} Äpfel für ${earned}€ verkauft!`, 'success');
+                game.apples = 0;
+                updateDisplay();
+                saveLocal();
+            },
+
+            'produce flour': () => {
+                if (game.flourProducing.length >= game.mills) {
+                    print(`❌ Alle ${game.mills} Mühlen belegt!`, 'error');
+                    return;
+                }
+                if (game.wheat < 3) {
+                    print('❌ Nicht genug Weizen! (benötigt: 3)', 'error');
+                    return;
+                }
+                game.wheat -= 3;
+                game.flourProducing.push({ startTime: Date.now() });
+                print('🏺 Mehlproduktion gestartet! (Dauert 120 Sekunden)', 'success');
+                updateDisplay();
+                saveLocal();
+            },
+
+            'collect flour': () => {
+                const now = Date.now();
+                let collected = 0;
+                game.flourProducing = game.flourProducing.filter(item => {
+                    if (now - item.startTime >= game.growthTimes.flour) {
+                        collected++;
+                        return false;
+                    }
+                    return true;
+                });
+                
+                if (collected > 0) {
+                    game.flour += collected;
+                    print(`✓ ${collected} Mehl eingesammelt!`, 'success');
+                    updateDisplay();
+                    saveLocal();
+                } else {
+                    print('❌ Kein Mehl fertig!', 'error');
+                }
+            },
+
+            'sell flour': () => {
+                if (game.flour === 0) {
+                    print('❌ Kein Mehl im Inventar!', 'error');
+                    return;
+                }
+                const earned = game.flour * game.prices.flour;
+                game.money += earned;
+                print(`💰 ${game.flour} Mehl für ${earned}€ verkauft!`, 'success');
+                game.flour = 0;
+                updateDisplay();
+                saveLocal();
+            },
+
+            'buy field': () => {
+                if (game.money < game.prices.wheatField) {
+                    print(`❌ Nicht genug Geld! (benötigt: ${game.prices.wheatField}€)`, 'error');
+                    return;
+                }
+                game.money -= game.prices.wheatField;
+                game.wheatFields++;
+                print(`✓ Weizenfeld gekauft! (Jetzt: ${game.wheatFields})`, 'success');
+                updateDisplay();
+                saveLocal();
+            },
+
+            'buy tree': () => {
+                if (game.money < game.prices.appleTree) {
+                    print(`❌ Nicht genug Geld! (benötigt: ${game.prices.appleTree}€)`, 'error');
+                    return;
+                }
+                game.money -= game.prices.appleTree;
+                game.appleTrees++;
+                print(`✓ Apfelbaum gekauft! (Jetzt: ${game.appleTrees})`, 'success');
+                updateDisplay();
+                saveLocal();
+            },
+
+            'buy mill': () => {
+                if (game.money < game.prices.mill) {
+                    print(`❌ Nicht genug Geld! (benötigt: ${game.prices.mill}€)`, 'error');
+                    return;
+                }
+                game.money -= game.prices.mill;
+                game.mills++;
+                print(`✓ Mühle gekauft! (Jetzt: ${game.mills})`, 'success');
+                updateDisplay();
+                saveLocal();
+            },
+
+            status: openStatus,
+            inventory: openInventory,
+            settings: openSettings,
+            tutorial: showTutorial,
 
             prices: () => {
-                print('╔══════════════════════════════════════════════════╗', 'info');
-                print('║              MARKTPREISE                         ║', 'info');
-                print('╚══════════════════════════════════════════════════╝', 'info');
+                print('💰 PREISÜBERSICHT:', 'info');
                 print('');
-                print('💰 VERKAUF:', 'success');
-                print(`  🌾 Weizen: ${game.prices.wheat} €`);
-                print(`  🍎 Apfel: ${game.prices.apple} €`);
-                print(`  🏺 Mehl: ${game.prices.flour} €`);
+                print('🌾 WEIZEN:');
+                print('  Pflanzen: 2€  |  Verkaufen: 8€  |  Zeit: 30s');
+                print('🍎 ÄPFEL:');
+                print('  Pflanzen: 5€  |  Verkaufen: 15€  |  Zeit: 60s');
+                print('🏺 MEHL:');
+                print('  Kosten: 3 Weizen  |  Verkaufen: 25€  |  Zeit: 120s');
                 print('');
-                print('🏗️ KAUF:', 'warning');
-                print(`  🌾 Feld: ${game.prices.wheatField} €`);
-                print(`  🍎 Baum: ${game.prices.appleTree} €`);
-                print(`  ⚙️ Mühle: ${game.prices.mill} €`);
+                print('🏗️ GEBÄUDE:');
+                print('  Weizenfeld: 100€');
+                print('  Apfelbaum: 200€');
+                print('  Mühle: 400€');
                 print('');
             },
 
-            plant: (args) => {
-                const type = args[0];
-                let amount = 1;
-                if (args.length > 1) {
-                    const parsed = parseInt(args[1]);
-                    if (isNaN(parsed) || parsed < 1) {
-                        print('❌ Ungültige Anzahl!', 'error');
-                        return;
-                    }
-                    amount = parsed;
-                }
-
-                if (type === 'wheat') {
-                    const available = game.wheatFields - game.wheatGrowing.length;
-                    if (amount > available) {
-                        print(`❌ Nur ${available} Felder verfügbar!`, 'error');
-                        return;
-                    }
-                    for (let i = 0; i < amount; i++) {
-                        game.wheatGrowing.push({ startTime: Date.now() });
-                    }
-                    print(`✓ ${amount}x Weizen angepflanzt! (30s)`, 'success');
-                } else if (type === 'apple') {
-                    const available = game.appleTrees - game.applesGrowing.length;
-                    if (amount > available) {
-                        print(`❌ Nur ${available} Bäume verfügbar!`, 'error');
-                        return;
-                    }
-                    for (let i = 0; i < amount; i++) {
-                        game.applesGrowing.push({ startTime: Date.now() });
-                    }
-                    print(`✓ ${amount}x Äpfel angepflanzt! (60s)`, 'success');
-                } else {
-                    print('❌ Nutze: wheat oder apple', 'error');
-                    return;
-                }
-                saveLocal();
-                updateDisplay();
-            },
-
-            produce: (args) => {
-                const type = args[0];
-                let amount = 1;
-                if (args.length > 1) {
-                    const parsed = parseInt(args[1]);
-                    if (isNaN(parsed) || parsed < 1) {
-                        print('❌ Ungültige Anzahl!', 'error');
-                        return;
-                    }
-                    amount = parsed;
-                }
-
-                if (type === 'flour') {
-                    const available = game.mills - game.flourProducing.length;
-                    if (amount > available) {
-                        print(`❌ Nur ${available} Mühlen verfügbar!`, 'error');
-                        return;
-                    }
-                    const wheatNeeded = amount * 2;
-                    if (game.wheat < wheatNeeded) {
-                        print(`❌ Du brauchst ${wheatNeeded} Weizen!`, 'error');
-                        return;
-                    }
-                    game.wheat -= wheatNeeded;
-                    for (let i = 0; i < amount; i++) {
-                        game.flourProducing.push({ startTime: Date.now() });
-                    }
-                    print(`✓ ${amount}x Mehl wird produziert! (120s)`, 'success');
-                } else {
-                    print('❌ Nutze: flour', 'error');
-                    return;
-                }
-                saveLocal();
-                updateDisplay();
-            },
-
-            harvest: (args) => {
-                const type = args[0];
-
-                if (type === 'all') {
-                    let totalHarvested = 0;
-                    
-                    const readyWheat = game.wheatGrowing.filter(item => 
-                        Date.now() - item.startTime >= game.growthTimes.wheat
-                    );
-                    game.wheat += readyWheat.length;
-                    game.wheatGrowing = game.wheatGrowing.filter(item => 
-                        Date.now() - item.startTime < game.growthTimes.wheat
-                    );
-                    if (readyWheat.length > 0) {
-                        print(`✓ ${readyWheat.length}x Weizen geerntet!`, 'success');
-                        totalHarvested += readyWheat.length;
-                    }
-
-                    const readyApples = game.applesGrowing.filter(item => 
-                        Date.now() - item.startTime >= game.growthTimes.apple
-                    );
-                    game.apples += readyApples.length;
-                    game.applesGrowing = game.applesGrowing.filter(item => 
-                        Date.now() - item.startTime < game.growthTimes.apple
-                    );
-                    if (readyApples.length > 0) {
-                        print(`✓ ${readyApples.length}x Äpfel geerntet!`, 'success');
-                        totalHarvested += readyApples.length;
-                    }
-
-                    const readyFlour = game.flourProducing.filter(item => 
-                        Date.now() - item.startTime >= game.growthTimes.flour
-                    );
-                    game.flour += readyFlour.length;
-                    game.flourProducing = game.flourProducing.filter(item => 
-                        Date.now() - item.startTime < game.growthTimes.flour
-                    );
-                    if (readyFlour.length > 0) {
-                        print(`✓ ${readyFlour.length}x Mehl geerntet!`, 'success');
-                        totalHarvested += readyFlour.length;
-                    }
-
-                    if (totalHarvested === 0) {
-                        print('❌ Nichts bereit zum Ernten!', 'error');
-                    }
-                } else if (type === 'wheat' || type === 'apple' || type === 'flour') {
-                    let amount = 999999;
-                    if (args.length > 1) {
-                        const parsed = parseInt(args[1]);
-                        if (isNaN(parsed) || parsed < 1) {
-                            print('❌ Ungültige Anzahl!', 'error');
-                            return;
-                        }
-                        amount = parsed;
-                    }
-                    
-                    if (type === 'wheat') {
-                        const ready = game.wheatGrowing.filter(item => 
-                            Date.now() - item.startTime >= game.growthTimes.wheat
-                        ).slice(0, amount);
-                        
-                        if (ready.length === 0) {
-                            print('❌ Kein Weizen bereit!', 'error');
-                            return;
-                        }
-                        
-                        game.wheat += ready.length;
-                        game.wheatGrowing = game.wheatGrowing.filter(item => !ready.includes(item));
-                        print(`✓ ${ready.length}x Weizen geerntet!`, 'success');
-                    } else if (type === 'apple') {
-                        const ready = game.applesGrowing.filter(item => 
-                            Date.now() - item.startTime >= game.growthTimes.apple
-                        ).slice(0, amount);
-                        
-                        if (ready.length === 0) {
-                            print('❌ Keine Äpfel bereit!', 'error');
-                            return;
-                        }
-                        
-                        game.apples += ready.length;
-                        game.applesGrowing = game.applesGrowing.filter(item => !ready.includes(item));
-                        print(`✓ ${ready.length}x Äpfel geerntet!`, 'success');
-                    } else if (type === 'flour') {
-                        const ready = game.flourProducing.filter(item => 
-                            Date.now() - item.startTime >= game.growthTimes.flour
-                        ).slice(0, amount);
-                        
-                        if (ready.length === 0) {
-                            print('❌ Kein Mehl bereit!', 'error');
-                            return;
-                        }
-                        
-                        game.flour += ready.length;
-                        game.flourProducing = game.flourProducing.filter(item => !ready.includes(item));
-                        print(`✓ ${ready.length}x Mehl geerntet!`, 'success');
-                    }
-                } else {
-                    print('❌ Nutze: wheat, apple, flour oder all', 'error');
-                    return;
-                }
-                saveLocal();
-                updateDisplay();
-            },
-
-            sell: (args) => {
-                const type = args[0];
-
-                if (type === 'all') {
-                    const total = (game.wheat * game.prices.wheat) + 
-                                (game.apples * game.prices.apple) + 
-                                (game.flour * game.prices.flour);
-                    if (total === 0) {
-                        print('❌ Nichts zum Verkaufen!', 'error');
-                        return;
-                    }
-                    print(`✓ Verkauft: ${game.wheat} Weizen, ${game.apples} Äpfel, ${game.flour} Mehl`, 'success');
-                    print(`💰 +${total} €!`, 'success');
-                    game.money += total;
-                    game.wheat = 0;
-                    game.apples = 0;
-                    game.flour = 0;
-                } else if (type === 'wheat' || type === 'apple' || type === 'flour') {
-                    let amount = type === 'wheat' ? game.wheat : (type === 'apple' ? game.apples : game.flour);
-                    if (args.length > 1) {
-                        const parsed = parseInt(args[1]);
-                        if (isNaN(parsed) || parsed < 1) {
-                            print('❌ Ungültige Anzahl!', 'error');
-                            return;
-                        }
-                        amount = parsed;
-                    }
-                    
-                    if (type === 'wheat') {
-                        if (amount > game.wheat) {
-                            print(`❌ Du hast nur ${game.wheat} Weizen!`, 'error');
-                            return;
-                        }
-                        const earned = amount * game.prices.wheat;
-                        game.wheat -= amount;
-                        game.money += earned;
-                        print(`✓ ${amount}x Weizen verkauft! (+${earned} €)`, 'success');
-                    } else if (type === 'apple') {
-                        if (amount > game.apples) {
-                            print(`❌ Du hast nur ${game.apples} Äpfel!`, 'error');
-                            return;
-                        }
-                        const earned = amount * game.prices.apple;
-                        game.apples -= amount;
-                        game.money += earned;
-                        print(`✓ ${amount}x Äpfel verkauft! (+${earned} €)`, 'success');
-                    } else if (type === 'flour') {
-                        if (amount > game.flour) {
-                            print(`❌ Du hast nur ${game.flour} Mehl!`, 'error');
-                            return;
-                        }
-                        const earned = amount * game.prices.flour;
-                        game.flour -= amount;
-                        game.money += earned;
-                        print(`✓ ${amount}x Mehl verkauft! (+${earned} €)`, 'success');
-                    }
-                } else {
-                    print('❌ Nutze: wheat, apple, flour oder all', 'error');
-                    return;
-                }
-                saveLocal();
-                updateDisplay();
-            },
-
-            buy: (args) => {
-                const type = args[0];
-                let amount = 1;
-                if (args.length > 1) {
-                    const parsed = parseInt(args[1]);
-                    if (isNaN(parsed) || parsed < 1) {
-                        print('❌ Ungültige Anzahl!', 'error');
-                        return;
-                    }
-                    amount = parsed;
-                }
-
-                if (type === 'field') {
-                    const cost = game.prices.wheatField * amount;
-                    if (game.money < cost) {
-                        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
-                        return;
-                    }
-                    game.money -= cost;
-                    game.wheatFields += amount;
-                    print(`✓ ${amount}x Feld gekauft! (-${cost} €)`, 'success');
-                               } else if (type === 'tree') {
-                    const cost = game.prices.appleTree * amount;
-                    if (game.money < cost) {
-                        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
-                        return;
-                    }
-                    game.money -= cost;
-                    game.appleTrees += amount;
-                    print(`✓ ${amount}x Baum gekauft! (-${cost} €)`, 'success');
-                } else if (type === 'mill') {
-                    const cost = game.prices.mill * amount;
-                    if (game.money < cost) {
-                        print(`❌ Nicht genug Geld! (${cost} € benötigt)`, 'error');
-                        return;
-                    }
-                    game.money -= cost;
-                    game.mills += amount;
-                    print(`✓ ${amount}x Mühle gekauft! (-${cost} €)`, 'success');
-                } else {
-                    print('❌ Nutze: field, tree oder mill', 'error');
-                    return;
-                }
-                saveLocal();
-                updateDisplay();
-            },
+            login: githubLogin,
+            logout: logout,
+            backup: backupToCloud,
+            restore: restoreFromCloud,
 
             clear: () => {
                 terminal.innerHTML = '';
             }
         };
 
-        function processCommand(cmd) {
-            print(`farm@terminal:~$ ${cmd}`, 'info');
-            
-            const parts = cmd.trim().toLowerCase().split(/\s+/);
-            const command = parts[0];
-            const args = parts.slice(1);
-
-            if (commands[command]) {
-                commands[command](args);
-            } else if (cmd.trim() === '') {
-                // Do nothing
-            } else {
-                print(`❌ Befehl nicht gefunden: ${command}`, 'error');
-                print('Tippe "help" für alle Befehle.', 'warning');
-            }
-            print('');
-        }
-
         // ============================================
-        // EVENT LISTENERS - TERMINAL ONLY SCROLL
+        // INPUT HANDLER
         // ============================================
-
-        document.getElementById('statusBtn').addEventListener('click', openStatus);
-        document.getElementById('inventoryBtn').addEventListener('click', openInventory);
-        document.getElementById('settingsBtn').addEventListener('click', openSettings);
-        document.getElementById('closeStatusBtn').addEventListener('click', closeStatus);
-        document.getElementById('closeInventoryBtn').addEventListener('click', closeInventory);
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                const cmd = input.value;
+                const command = input.value.trim().toLowerCase();
+                
+                if (command) {
+                    print(`farm@terminal:~$ ${command}`, 'info');
+                    
+                    if (commands[command]) {
+                        commands[command]();
+                    } else {
+                        print(`❌ Unbekannter Befehl: "${command}"`, 'error');
+                        print('Tippe "help" für alle Befehle', 'warning');
+                    }
+                    
+                    print('');
+                }
+                
                 input.value = '';
-                processCommand(cmd);
-            }
-        });
-
-        // STRICT SCROLL CONTROL - NUR TERMINAL
-        document.body.addEventListener('touchmove', (e) => {
-            const inTerminal = e.target.closest('#terminal');
-            if (!inTerminal) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        // Terminal Scroll erlauben
-        terminal.addEventListener('touchstart', (e) => {
-            e.stopPropagation();
-        }, { passive: true });
-
-        terminal.addEventListener('touchmove', (e) => {
-            e.stopPropagation();
-            
-            // Verhindere Over-Scroll
-            const scrollTop = terminal.scrollTop;
-            const scrollHeight = terminal.scrollHeight;
-            const clientHeight = terminal.clientHeight;
-            const atTop = scrollTop === 0;
-            const atBottom = scrollTop + clientHeight >= scrollHeight;
-            
-            const touch = e.touches[0];
-            const deltaY = touch.clientY - (terminal._lastTouchY || touch.clientY);
-            terminal._lastTouchY = touch.clientY;
-            
-            if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        terminal.addEventListener('touchend', () => {
-            delete terminal._lastTouchY;
-        }, { passive: true });
-
-        // Prevent double-tap zoom
-        let lastTouchEnd = 0;
-        document.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            if (now - lastTouchEnd <= 300) {
-                e.preventDefault();
-            }
-            lastTouchEnd = now;
-        }, false);
-
-        // Prevent pinch zoom
-        document.addEventListener('gesturestart', (e) => e.preventDefault());
-        document.addEventListener('gesturechange', (e) => e.preventDefault());
-        document.addEventListener('gestureend', (e) => e.preventDefault());
-
-        // Focus management
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.modal-content') && 
-                !e.target.closest('.blocking-screen') && 
-                !e.target.closest('.btn')) {
-                input.focus();
             }
         });
 
         // ============================================
-        // CONNECTION & LIFECYCLE
+        // EVENT LISTENERS
         // ============================================
 
+        document.getElementById('statusBtn').addEventListener('click', openStatus);
+        document.getElementById('closeStatusBtn').addEventListener('click', closeStatus);
+        document.getElementById('inventoryBtn').addEventListener('click', openInventory);
+        document.getElementById('closeInventoryBtn').addEventListener('click', closeInventory);
+        document.getElementById('settingsBtn').addEventListener('click', openSettings);
+
+        // Close modals on background click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+
+        // Online/Offline detection
         window.addEventListener('online', () => {
             isOnline = true;
             updateSyncBadge();
-            print('✓ Verbindung wiederhergestellt', 'success');
+            print('✓ Online-Verbindung wiederhergestellt', 'success');
         });
 
         window.addEventListener('offline', () => {
             isOnline = false;
             updateSyncBadge();
-            print('⚠️ Offline-Modus', 'warning');
+            print('⚠ Offline-Modus aktiviert', 'warning');
         });
 
-        window.addEventListener('beforeunload', () => {
-            saveLocal();
-        });
-
-        window.addEventListener('resize', () => {
-            updateAccessControl();
-        });
-
-        onAuthStateChanged(auth, async (user) => {
-            currentUser = user;
-            
-            // Lade Cloud-Status wenn User eingeloggt
-            if (user && isOnline) {
-                try {
-                    const docRef = doc(db, "farms", user.uid);
-                    const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        const cloudData = docSnap.data();
-                        lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
-                    }
-                } catch (error) {
-                    console.error('Could not load cloud backup status:', error);
-                }
-            }
-        });
-
-        // ============================================
-        // AUTO-SAVE SYSTEM
-        // ============================================
-
-        // LOCAL: Every 2 seconds
-        setInterval(() => {
-            saveLocal();
-        }, 2000);
-
-        // Update display every second
-        setInterval(updateDisplay, 1000);
-
-        // Welcome message
-        function printWelcome() {
-            print('═══════════════════════════════════════════════════════', 'info');
-            print('   🌾 Willkommen bei TERMINAL FARM! 🌾', 'info');
-            print('═══════════════════════════════════════════════════════', 'info');
-            print('');
-            print('💾 Auto-Save: Lokal alle 2 Sekunden', 'info');
-            print('☁️ Cloud-Sicherung: Optional mit GitHub', 'info');
-            print('');
-            print('Baue Pflanzen an, produziere Waren und verkaufe sie!', 'info');
-            print('');
-            print('Tippe "help" für alle Befehle!', 'warning');
-            print('');
-        }
+        // Screen resize detection
+        window.addEventListener('resize', updateAccessControl);
 
         // ============================================
         // INITIALIZATION
         // ============================================
 
-        if (updateAccessControl()) {
+        function init() {
+            if (!updateAccessControl()) {
+                return;
+            }
+
             loadLocal();
             updateDisplay();
-            printWelcome();
             
-            // Lade Cloud-Status wenn bereits eingeloggt
-            if (currentUser && isOnline) {
-                (async () => {
-                    try {
-                        const docRef = doc(db, "farms", currentUser.uid);
-                        const docSnap = await getDoc(docRef);
-                        if (docSnap.exists()) {
-                            const cloudData = docSnap.data();
-                            lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
-                        }
-                    } catch (error) {
-                        console.error('Could not load cloud backup status:', error);
-                    }
-                })();
-            }
+            print('🌾 TERMINAL FARM v3.0 🌾', 'success');
+            print('═══════════════════════════════════════', 'success');
+            print('');
             
             if (!game.tutorialCompleted) {
-                setTimeout(startTutorial, 1000);
+                print('👋 Willkommen bei Terminal Farm!', 'info');
+                print('Öffne das Tutorial mit "tutorial" oder tippe "help"', 'warning');
+                print('');
+            } else {
+                print('✓ Spiel geladen!', 'success');
+                print('Tippe "help" für alle Befehle', 'info');
+                print('');
             }
+
+            // Auto-save every 10 seconds
+            setInterval(saveLocal, 10000);
         }
-    </script>
-    
-    <!-- Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(reg => console.log('✓ Service Worker registered'))
-                    .catch(err => console.log('✗ Service Worker failed:', err));
-            });
-        }
+
+        // Auth state observer
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                updateSyncBadge();
+            } else {
+                currentUser = null;
+                lastCloudBackup = 0;
+                updateSyncBadge();
+            }
+        });
+
+        // Start game
+        init();
     </script>
 </body>
 </html>
