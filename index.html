@@ -1564,7 +1564,7 @@
             print('');
         }
 // ============================================
-// EVENT LISTENERS - COMPLETE (inkl. Modal-Scroll)
+// EVENT LISTENERS - ERSETZEN SIE HIERMIT DEN ALTEN BLOCK
 // ============================================
 
 document.getElementById('statusBtn').addEventListener('click', openStatus);
@@ -1573,6 +1573,7 @@ document.getElementById('settingsBtn').addEventListener('click', openSettings);
 document.getElementById('closeStatusBtn').addEventListener('click', closeStatus);
 document.getElementById('closeInventoryBtn').addEventListener('click', closeInventory);
 
+// Enter -> execute command
 input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         const cmd = input.value;
@@ -1582,13 +1583,26 @@ input.addEventListener('keydown', (e) => {
 });
 
 // ============================================
+// BODY touchmove: nur blockieren, wenn NICHT in terminal oder modal-content
+// so wird Scroll im Terminal und in Modals erlaubt, sonst Body scroll verhindert
+// ============================================
+document.body.addEventListener('touchmove', (e) => {
+    // Wenn Touch innerhalb Terminal oder Modal-Content liegt -> erlauben
+    if (e.target.closest('#terminal') || e.target.closest('.modal-content')) {
+        return; // kein preventDefault -> Scroll möglich
+    }
+    // Sonst verhindern (Body bleibt fest)
+    e.preventDefault();
+}, { passive: false });
+
+// ============================================
 // MODAL CONTENT SCROLL HANDLERS
 // - allow natural scrolling inside .modal-content
 // - prevent rubber-band (overscroll) within modal
 // ============================================
 document.querySelectorAll('.modal-content').forEach(element => {
     element.addEventListener('touchstart', (e) => {
-        // stop propagation so body/toplevel handlers don't block modal scroll
+        // Stop propagation so top-level handlers don't interfere
         e.stopPropagation();
     }, { passive: true });
 
@@ -1619,7 +1633,7 @@ document.querySelectorAll('.modal-content').forEach(element => {
 });
 
 // ============================================
-// TERMINAL TOUCH HANDLERS (improve touch scroll on terminal)
+// TERMINAL TOUCH HANDLERS (soll sicher scrollen)
 // - terminal should scroll, header and input remain fixed
 // ============================================
 terminal.addEventListener('touchstart', (e) => {
