@@ -1,14 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(reg => console.log('✓ Service Worker registered'))
-                    .catch(err => console.log('✗ Service Worker failed:', err));
-            });
-        }
-    </script>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -573,45 +564,39 @@ body {
             <span id="prompt">farm@terminal:~$</span>
             <input type="text" id="input" autocomplete="off" autofocus>
         </div>
-    </div>
-
-    <!-- Status Modal -->
-    <div id="statusModal" class="modal">
+    </header>
+    <main>
+        <section class="inventory">
+            <h2>Inventory</h2>
+            <ul id="inventory-list"></ul>
+            <button id="update-inventory">Update Inventory</button>
+        </section>
+        <section id="corn-farm" style="display: none;">
+            <h2>Corn Farm</h2>
+            <button id="plant-corn">Plant Corn</button>
+            <p>Your Corn: <span id="corn-amount">0</span></p>
+        </section>
+    </main>
+    <div class="modal" id="status-modal">
         <div class="modal-content">
-            <div class="modal-title">📊 FARM STATUS</div>
-            <div id="statusContent"></div>
-            <div class="modal-buttons">
-                <button class="btn" id="closeStatusBtn">Schließen</button>
-            </div>
+            <span class="close">&times;</span>
+            <p>Status update modal</p>
         </div>
     </div>
-
-    <!-- Inventory Modal -->
-    <div id="inventoryModal" class="modal">
+    <div class="modal" id="inventory-modal">
         <div class="modal-content">
-            <div class="modal-title">📦 INVENTAR</div>
-            <div id="inventoryContent"></div>
-            <div class="modal-buttons">
-                <button class="btn" id="closeInventoryBtn">Schließen</button>
-            </div>
+            <span class="close">&times;</span>
+            <p>Inventory update modal</p>
         </div>
     </div>
-
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-title">⚙️ EINSTELLUNGEN</div>
-            <div id="settingsContent"></div>
-        </div>
-    </div>
-
-    <!-- Tutorial Modal -->
-    <div id="tutorialModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-title">🎓 WILLKOMMEN BEI TERMINAL FARM!</div>
-            <div id="tutorialContent"></div>
-        </div>
-    </div>
+    <footer>
+        <p>&copy; 2025 Term Farm. All rights reserved.</p>
+    </footer>
+    <script>
+        // JavaScript for live updating, modal handling and level XP system
+        let userLevel = 1;
+        let userXP = 0;
+        const xpThresholds = [0, 500, 1200, 2000]; // Mock thresholds for levels
 
     <script type="module">
         // Firebase imports
@@ -1248,178 +1233,11 @@ body {
             document.getElementById('inventoryModal').classList.remove('active');
         }
 
-       async function openSettings() {
-    const modal = document.getElementById('settingsModal');
-    const content = document.getElementById('settingsContent');
-    
-    if (currentUser) {
-        let cloudStatusText = 'Wird geladen...';
-        let cloudStatusColor = '#ffaa00';
-        
-        if (!isOnline) {
-            cloudStatusText = 'Keine Verbindung';
-            cloudStatusColor = '#ff0000';
-        } else {
-            try {
-                const docRef = doc(db, "farms", currentUser.uid);
-                const docSnap = await getDoc(docRef);
-                
-                if (docSnap.exists()) {
-                    const cloudData = docSnap.data();
-                    lastCloudBackup = cloudData.backedUpAt || cloudData.lastUpdate || 0;
-                    const backupDate = new Date(lastCloudBackup);
-                    cloudStatusText = backupDate.toLocaleString('de-DE');
-                    cloudStatusColor = '#00ff00';
-                } else {
-                    cloudStatusText = 'Noch keine Sicherung';
-                    cloudStatusColor = '#ffaa00';
-                }
-            } catch (error) {
-                console.error('Cloud status check failed:', error);
-                cloudStatusText = 'Fehler beim Laden';
-                cloudStatusColor = '#ff0000';
-            }
-        }
-        
-        const username = currentUser.displayName || 
-                       currentUser.reloadUserInfo?.screenName || 
-                       currentUser.email?.split('@')[0] ||
-                       'GitHub User';
-        
-        content.innerHTML = `
-            <div class="modal-item">
-                <strong>👤 Angemeldet als:</strong> ${username}
-            </div>
-            <div class="modal-item">
-                <strong>🕐 Letzte Cloud-Sicherung:</strong><br>
-                <span style="color: ${cloudStatusColor};">${cloudStatusText}</span>
-            </div>
-            <div class="modal-item" style="background: #001100; border-color: #00aaff;">
-                <strong>💾 Speicherung:</strong> Lokal (alle 2s automatisch)
-            </div>
-            <div class="modal-buttons">
-                <button class="btn" id="backupBtn" style="border-color: #00aaff; color: #00aaff;">☁️ Sichern</button>
-                <button class="btn" id="restoreBtn">↓ Wiederherstellen</button>
-                <button class="btn" id="logoutBtn" style="border-color: #ff0000; color: #ff0000;">Ausloggen</button>
-            </div>
-            <div class="modal-buttons" style="justify-content: center; margin-top: 10px;">
-                <button class="btn" id="closeSettingsBtn2" style="width: 100%;">Schließen</button>
-            </div>
-        `;
-        
-        document.getElementById('logoutBtn').addEventListener('click', () => {
-            closeSettings();
-            logout();
+        document.getElementById('update-inventory').addEventListener('click', function() {
+            // Logic to update inventory
+            userXP += 100; // Example XP Gain
+            levelUp();
         });
-        
-        document.getElementById('backupBtn').addEventListener('click', async () => {
-            closeSettings();
-            await backupToCloud();
-        });
-        
-        document.getElementById('restoreBtn').addEventListener('click', async () => {
-            closeSettings();
-            await restoreFromCloud();
-        });
-        
-        document.getElementById('closeSettingsBtn2').addEventListener('click', closeSettings);
-    } else {
-        content.innerHTML = `
-            <div class="modal-item">
-                <strong>👤 Status:</strong> <span style="color: #ffaa00;">Nicht angemeldet</span>
-            </div>
-            <div class="modal-item">
-                <strong>💾 Speicherung:</strong> <span style="color: #00ff00;">Lokal (alle 2s automatisch)</span>
-            </div>
-            <div class="modal-item" style="padding: 20px; background: #001100; border-color: #00aaff;">
-                <strong style="color: #00aaff;">☁️ Cloud-Sicherung (Optional)</strong>
-                <p style="margin-top: 10px; color: #00aaff; font-size: 14px;">
-                    Melde dich mit GitHub an, um deine Daten zusätzlich in der Cloud zu sichern!
-                </p>
-                <p style="margin-top: 10px; color: #00ff00; font-size: 13px;">
-                    ✓ Zusätzliches Backup<br>
-                    ✓ Manuell wiederherstellbar<br>
-                    ✓ Völlig optional
-                </p>
-            </div>
-            <div class="modal-buttons">
-                <button class="btn" id="loginBtn">🔗 Mit GitHub anmelden</button>
-            </div>
-            <div class="modal-buttons" style="justify-content: center; margin-top: 10px;">
-                <button class="btn" id="closeSettingsBtn3" style="width: 100%;">Schließen</button>
-            </div>
-        `;
-        
-        document.getElementById('loginBtn').addEventListener('click', () => {
-            closeSettings();
-            githubLogin();
-        });
-        
-        document.getElementById('closeSettingsBtn3').addEventListener('click', closeSettings);
-    }
-    
-    modal.classList.add('active');
-}
-        function closeSettings() {
-            document.getElementById('settingsModal').classList.remove('active');
-        }
-
-        function startTutorial() {
-            const modal = document.getElementById('tutorialModal');
-            const content = document.getElementById('tutorialContent');
-            
-            content.innerHTML = `
-                <div class="tutorial-step">
-                    <h3>Schritt 1: Felder bepflanzen 🌾</h3>
-                    <p>Tippe: <strong style="color: #ffaa00;">plant wheat 3</strong></p>
-                    <p>Dies pflanzt Weizen auf 3 deiner Felder. Weizen wächst 30 Sekunden.</p>
-                </div>
-                
-                <div class="tutorial-step">
-                    <h3>Schritt 2: Ernten 📦</h3>
-                    <p>Warte 30 Sekunden und tippe: <strong style="color: #ffaa00;">harvest all</strong></p>
-                    <p>Dies erntet alle fertigen Pflanzen.</p>
-                </div>
-                
-                <div class="tutorial-step">
-                    <h3>Schritt 3: Verkaufen 💰</h3>
-                    <p>Tippe: <strong style="color: #ffaa00;">sell all</strong></p>
-                    <p>Dies verkauft alles und bringt dir Geld!</p>
-                </div>
-                
-                <div class="tutorial-step">
-                    <h3>Schritt 4: Erweitern 🏗️</h3>
-                    <p>Tippe: <strong style="color: #ffaa00;">buy field</strong></p>
-                    <p>Kaufe mehr Felder, Bäume und Mühlen!</p>
-                </div>
-                
-                <div class="tutorial-step">
-                    <h3>Weitere Befehle 📋</h3>
-                    <p>Tippe: <strong style="color: #ffaa00;">help</strong></p>
-                    <p>Für alle Befehle.</p>
-                </div>
-                
-                <div class="modal-buttons">
-                    <button class="btn" id="closeTutorialBtn" style="font-size: 18px; padding: 15px;">
-                        Los geht's! 🚀
-                    </button>
-                </div>
-            `;
-            
-            document.getElementById('closeTutorialBtn').addEventListener('click', () => {
-                document.getElementById('tutorialModal').classList.remove('active');
-                game.tutorialCompleted = true;
-                saveLocal();
-                print('✓ Tutorial abgeschlossen! Viel Erfolg! 🎉', 'success');
-                print('');
-            });
-            
-            modal.classList.add('active');
-        }
-
-        // ============================================
-        // COMMANDS
-        // ============================================
 
         const commands = {
             help: () => {
